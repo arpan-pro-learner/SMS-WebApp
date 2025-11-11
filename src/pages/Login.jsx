@@ -45,7 +45,8 @@ function Login() {
               navigate('/student');
               break;
             default:
-              navigate('/');
+              // No default navigation needed here, App.jsx will handle it
+              break;
           }
         }
       }
