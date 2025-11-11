@@ -1,11 +1,12 @@
 import React from 'react';
+import Layout from '../components/Layout';
 
 function AdminDashboard() {
   return (
-    <div>
-      <h2>Admin Dashboard</h2>
-      <p>Welcome, Admin!</p>
-    </div>
+    <Layout>
+      <h2 className="text-2xl font-bold">Admin Dashboard</h2>
+      <p className="mt-4">Welcome, Admin!</p>
+    </Layout>
   );
 }
 

@@ -1,11 +1,12 @@
 import React from 'react';
+import Layout from '../components/Layout';
 
 function StudentDashboard() {
   return (
-    <div>
-      <h2>Student Dashboard</h2>
-      <p>Welcome, Student!</p>
-    </div>
+    <Layout>
+      <h2 className="text-2xl font-bold">Student Dashboard</h2>
+      <p className="mt-4">Welcome, Student!</p>
+    </Layout>
   );
 }
 
