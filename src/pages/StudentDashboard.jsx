@@ -1,166 +1,121 @@
 import React, { useEffect, useState } from 'react';
-import Layout from '../components/Layout';
-import useAttendanceStore from '../store/attendanceStore';
-import useMarksStore from '../store/marksStore'; // Import the marks store
 import { supabase } from '../supabaseClient';
-import { Bar } from 'react-chartjs-2'; // Import chart components
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend,
-} from 'chart.js';
-
-// Register Chart.js components
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend
-);
+import { Link } from 'react-router-dom';
 
 function StudentDashboard() {
-  const { attendanceRecords, loading: loadingAttendance, error: attendanceError, fetchAttendance } = useAttendanceStore();
-  const { marksRecords, loading: loadingMarks, error: marksError, fetchMarks } = useMarksStore(); // Destructure marks store
-  const [studentId, setStudentId] = useState(null);
-  const [loadingStudent, setLoadingStudent] = useState(true);
+  const [student, setStudent] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [attendanceSummary, setAttendanceSummary] = useState({ present: 0, absent: 0, late: 0 });
+  const [averageMarks, setAverageMarks] = useState(0);
 
   useEffect(() => {
-    const getStudentId = async () => {
+    const fetchStudentData = async () => {
+      setLoading(true);
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        const { data: profile, error } = await supabase
-          .from('users')
-          .select('id') // Assuming user.id in auth matches student.id in public.users
-          .eq('id', user.id)
+        const { data: studentData, error: studentError } = await supabase
+          .from('students')
+          .select('*')
+          .eq('email', user.email)
           .single();
-        if (profile) {
-          setStudentId(profile.id);
+
+        if (studentError) {
+          console.error('Error fetching student data:', studentError);
+        } else {
+          setStudent(studentData);
+          fetchAttendanceSummary(studentData.id);
+          fetchAverageMarks(studentData.id);
         }
       }
-      setLoadingStudent(false);
+      setLoading(false);
     };
-    getStudentId();
+
+    fetchStudentData();
   }, []);
 
-  useEffect(() => {
-    if (studentId) {
-      fetchAttendance({ student_id: studentId });
-      fetchMarks({ student_id: studentId }); // Fetch marks for the student
+  const fetchAttendanceSummary = async (studentId) => {
+    const { data, error } = await supabase
+      .from('attendance')
+      .select('status', { count: 'exact' })
+      .eq('student_id', studentId);
+
+    if (error) {
+      console.error('Error fetching attendance summary:', error);
+    } else {
+      const summary = data.reduce((acc, record) => {
+        acc[record.status.toLowerCase()] = (acc[record.status.toLowerCase()] || 0) + 1;
+        return acc;
+      }, { present: 0, absent: 0, late: 0 });
+      setAttendanceSummary(summary);
     }
-  }, [studentId, fetchAttendance, fetchMarks]);
-
-  if (loadingStudent) {
-    return <Layout><div>Loading student data...</div></Layout>;
-  }
-
-  // Prepare data for marks chart
-  const marksChartData = {
-    labels: marksRecords.map(record => record.subject),
-    datasets: [
-      {
-        label: 'Marks',
-        data: marksRecords.map(record => record.marks),
-        backgroundColor: 'rgba(75, 192, 192, 0.6)',
-        borderColor: 'rgba(75, 192, 192, 1)',
-        borderWidth: 1,
-      },
-    ],
   };
 
-  const marksChartOptions = {
-    responsive: true,
-    plugins: {
-      legend: {
-        position: 'top',
-      },
-      title: {
-        display: true,
-        text: 'Student Performance by Subject',
-      },
-    },
-    scales: {
-      y: {
-        beginAtZero: true,
-        max: 100,
-      },
-    },
+  const fetchAverageMarks = async (studentId) => {
+    const { data, error } = await supabase
+      .from('marks')
+      .select('marks')
+      .eq('student_id', studentId);
+
+    if (error) {
+      console.error('Error fetching marks:', error);
+    } else {
+      const totalMarks = data.reduce((sum, record) => sum + record.marks, 0);
+      const avg = data.length > 0 ? totalMarks / data.length : 0;
+      setAverageMarks(avg.toFixed(2));
+    }
   };
 
   return (
-    <Layout>
+    <div>
       <h2 className="text-2xl font-bold text-gray-800 mb-6">Student Dashboard</h2>
 
-      {/* Attendance Overview Section */}
-      <div className="bg-white p-6 rounded-lg shadow-md mb-8">
-        <h3 className="text-xl font-semibold text-gray-700 mb-4">My Attendance</h3>
+      {loading ? (
+        <p>Loading student data...</p>
+      ) : (
+        <>
+          {student && (
+            <div className="bg-white p-6 rounded-lg shadow-md mb-8">
+              <h3 className="text-xl font-semibold text-gray-700 mb-4">Welcome, {student.name}!</h3>
+              <p className="text-gray-600">Email: {student.email}</p>
+              {/* Add more student-specific info here if needed */}
+            </div>
+          )}
 
-        {attendanceError && <p className="text-red-500 mb-4">Error: {attendanceError.message}</p>}
-        {loadingAttendance && <p>Loading attendance records...</p>}
-        {!loadingAttendance && attendanceRecords.length === 0 && <p>No attendance records found.</p>}
-
-        {!loadingAttendance && attendanceRecords.length > 0 && (
-          <div className="overflow-x-auto">
-            <table className="min-w-full bg-white border border-gray-200 rounded-lg">
-              <thead>
-                <tr className="bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  <th className="px-6 py-3 border-b-2 border-gray-200">Date</th>
-                  <th className="px-6 py-3 border-b-2 border-gray-200">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {attendanceRecords.map((record) => (
-                  <tr key={record.id}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{record.date}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 capitalize">{record.status}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          {/* Overview Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+            <div className="bg-white shadow-sm rounded-xl p-4 border border-gray-200">
+              <h4 className="text-lg font-semibold text-gray-700">Days Present</h4>
+              <p className="text-3xl font-bold text-green-600">{attendanceSummary.present}</p>
+              <Link to="/app/student/attendance" className="text-blue-600 hover:underline">View Details</Link>
+            </div>
+            <div className="bg-white shadow-sm rounded-xl p-4 border border-gray-200">
+              <h4 className="text-lg font-semibold text-gray-700">Days Absent</h4>
+              <p className="text-3xl font-bold text-red-600">{attendanceSummary.absent}</p>
+              <Link to="/app/student/attendance" className="text-blue-600 hover:underline">View Details</Link>
+            </div>
+            <div className="bg-white shadow-sm rounded-xl p-4 border border-gray-200">
+              <h4 className="text-lg font-semibold text-gray-700">Average Marks</h4>
+              <p className="text-3xl font-bold text-purple-600">{averageMarks}</p>
+              <Link to="/app/student/marks" className="text-blue-600 hover:underline">View Details</Link>
+            </div>
           </div>
-        )}
-      </div>
 
-      {/* Marks Overview Section */}
-      <div className="bg-white p-6 rounded-lg shadow-md mb-8">
-        <h3 className="text-xl font-semibold text-gray-700 mb-4">My Marks</h3>
-
-        {marksError && <p className="text-red-500 mb-4">Error: {marksError.message}</p>}
-        {loadingMarks && <p>Loading marks records...</p>}
-        {!loadingMarks && marksRecords.length === 0 && <p>No marks records found.</p>}
-
-        {!loadingMarks && marksRecords.length > 0 && (
-          <>
-            <div className="overflow-x-auto mb-6">
-              <table className="min-w-full bg-white border border-gray-200 rounded-lg">
-                <thead>
-                  <tr className="bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    <th className="px-6 py-3 border-b-2 border-gray-200">Subject</th>
-                    <th className="px-6 py-3 border-b-2 border-gray-200">Marks</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {marksRecords.map((record) => (
-                    <tr key={record.id}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{record.subject}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{record.marks}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          {/* Quick Links / Other sections */}
+          <div className="bg-white p-6 rounded-lg shadow-md">
+            <h3 className="text-xl font-semibold text-gray-700 mb-4">Quick Actions</h3>
+            <div className="flex flex-wrap gap-4">
+              <Link
+                to="/app/announcements"
+                className="bg-blue-100 text-blue-800 px-4 py-2 rounded-lg hover:bg-blue-200"
+              >
+                View Announcements
+              </Link>
+              {/* Add more quick links as needed */}
             </div>
-            <div className="h-80"> {/* Chart container */}
-              <Bar data={marksChartData} options={marksChartOptions} />
-            </div>
-          </>
-        )}
-      </div>
-    </Layout>
+          </div>
+        </>
+      )}
+    </div>
   );
 }
 

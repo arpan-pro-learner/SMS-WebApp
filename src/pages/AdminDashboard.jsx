@@ -1,8 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import Layout from '../components/Layout';
 import useClassStore from '../store/classStore';
 import useAnnouncementStore from '../store/announcementStore';
 import { supabase } from '../supabaseClient';
+import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
+import { Doughnut } from 'react-chartjs-2';
+
+ChartJS.register(ArcElement, Tooltip, Legend);
 
 function AdminDashboard() {
   const { classes, loading: loadingClasses, error: classError, fetchClasses, addClass, updateClass, deleteClass } = useClassStore();
@@ -15,6 +18,9 @@ function AdminDashboard() {
   const [announcementDescription, setAnnouncementDescription] = useState('');
   const [adminId, setAdminId] = useState(null);
 
+  const [totalStudents, setTotalStudents] = useState(0);
+  const [totalTeachers, setTotalTeachers] = useState(0);
+
   useEffect(() => {
     const getAdminId = async () => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -25,13 +31,23 @@ function AdminDashboard() {
     getAdminId();
     fetchClasses();
     fetchAnnouncements();
+    fetchDashboardStats();
   }, [fetchClasses, fetchAnnouncements]);
+
+  const fetchDashboardStats = async () => {
+    const { count: studentCount } = await supabase.from('students').select('*', { count: 'exact' });
+    setTotalStudents(studentCount);
+
+    const { count: teacherCount } = await supabase.from('teachers').select('*', { count: 'exact' });
+    setTotalTeachers(teacherCount);
+  };
 
   const handleAddClass = async (e) => {
     e.preventDefault();
     if (newClassName.trim()) {
       await addClass({ name: newClassName });
       setNewClassName('');
+      fetchDashboardStats(); // Update stats after adding class
     }
   };
 
@@ -41,12 +57,14 @@ function AdminDashboard() {
       await updateClass(editingClass.id, { name: newClassName });
       setNewClassName('');
       setEditingClass(null);
+      fetchDashboardStats(); // Update stats after updating class
     }
   };
 
   const handleDeleteClass = async (id) => {
     if (window.confirm('Are you sure you want to delete this class?')) {
       await deleteClass(id);
+      fetchDashboardStats(); // Update stats after deleting class
     }
   };
 
@@ -70,18 +88,59 @@ function AdminDashboard() {
       });
       setAnnouncementTitle('');
       setAnnouncementDescription('');
+      fetchDashboardStats(); // Update stats after adding announcement
     }
   };
 
   const handleDeleteAnnouncement = async (id) => {
     if (window.confirm('Are you sure you want to delete this announcement?')) {
       await deleteAnnouncement(id);
+      fetchDashboardStats(); // Update stats after deleting announcement
     }
   };
 
+  const classDistributionData = {
+    labels: classes.map(cls => cls.name),
+    datasets: [
+      {
+        data: classes.map(() => 1), // Placeholder: ideally this would be student count per class
+        backgroundColor: ['#2563EB', '#F59E0B', '#10B981', '#EF4444', '#6366F1'],
+        hoverOffset: 4,
+      },
+    ],
+  };
+
   return (
-    <Layout>
+    <div>
       <h2 className="text-2xl font-bold text-gray-800 mb-6">Admin Dashboard</h2>
+
+      {/* Overview Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="bg-white shadow-sm rounded-xl p-4 border border-gray-200">
+          <h4 className="text-lg font-semibold text-gray-700">Total Students</h4>
+          <p className="text-3xl font-bold text-blue-600">{totalStudents}</p>
+        </div>
+        <div className="bg-white shadow-sm rounded-xl p-4 border border-gray-200">
+          <h4 className="text-lg font-semibold text-gray-700">Total Teachers</h4>
+          <p className="text-3xl font-bold text-green-600">{totalTeachers}</p>
+        </div>
+        <div className="bg-white shadow-sm rounded-xl p-4 border border-gray-200">
+          <h4 className="text-lg font-semibold text-gray-700">Total Classes</h4>
+          <p className="text-3xl font-bold text-yellow-600">{classes.length}</p>
+        </div>
+        <div className="bg-white shadow-sm rounded-xl p-4 border border-gray-200">
+          <h4 className="text-lg font-semibold text-gray-700">Total Announcements</h4>
+          <p className="text-3xl font-bold text-red-600">{announcements.length}</p>
+        </div>
+      </div>
+
+      {/* Class Distribution Chart */}
+      <div className="bg-white p-6 rounded-lg shadow-md mb-8">
+        <h3 className="text-xl font-semibold text-gray-700 mb-4">Class Distribution</h3>
+        <div className="w-full md:w-1/2 mx-auto">
+          <Doughnut data={classDistributionData} />
+        </div>
+      </div>
 
       {/* Class Management Section */}
       <div className="bg-white p-6 rounded-lg shadow-md mb-8">
@@ -205,7 +264,7 @@ function AdminDashboard() {
           </div>
         )}
       </div>
-    </Layout>
+    </div>
   );
 }
 

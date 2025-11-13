@@ -1,12 +1,14 @@
+import React, { useEffect, useState } from 'react';
 import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
+import SignUp from './pages/SignUp';
+import LandingPage from './pages/LandingPage';
 import AdminDashboard from './pages/AdminDashboard';
 import TeacherDashboard from './pages/TeacherDashboard';
 import StudentDashboard from './pages/StudentDashboard';
 import ProtectedRoute from './ProtectedRoute';
 import AppLayout from './AppLayout';
 import { supabase } from './supabaseClient';
-import { useEffect, useState } from 'react';
 import AdminClasses from './pages/AdminClasses';
 import AdminStudents from './pages/AdminStudents';
 import AdminTeachers from './pages/AdminTeachers';
@@ -18,11 +20,19 @@ import Announcements from './pages/Announcements';
 
 const router = createBrowserRouter([
   {
+    path: '/',
+    element: <LandingPage />,
+  },
+  {
     path: '/login',
     element: <Login />,
   },
   {
-    path: '/',
+    path: '/signup',
+    element: <SignUp />,
+  },
+  {
+    path: '/app',
     element: <AppLayout />,
     children: [
       {
@@ -51,11 +61,11 @@ const router = createBrowserRouter([
         ],
       },
       {
-        path: '/announcements',
+        path: 'announcements',
         element: <Announcements />,
       },
       {
-        path: '/',
+        path: '/app',
         element: <RootRedirect />,
       }
     ],
@@ -96,11 +106,11 @@ function RootRedirect() {
 
   switch (user.role) {
     case 'admin':
-      return <Navigate to="/admin" replace />;
+      return <Navigate to="/app/admin" replace />;
     case 'teacher':
-      return <Navigate to="/teacher" replace />;
+      return <Navigate to="/app/teacher" replace />;
     case 'student':
-      return <Navigate to="/student" replace />;
+      return <Navigate to="/app/student" replace />;
     default:
       return <Navigate to="/login" replace />;
   }
