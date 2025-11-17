@@ -25,12 +25,24 @@ function TeacherDashboard() {
 
         const { data: teacherData, error: teacherError } = await supabase
           .from('users')
-          .select('id, name, classes:classes(id, name, students:students(id))')
+          .select('id, name')
           .eq('email', user.email)
           .eq('role', 'teacher')
           .single();
         
         if (teacherError) throw teacherError;
+        
+        if (teacherData) {
+          const { data: classesData, error: classesError } = await supabase
+            .from('classes')
+            .select('id, name, students:students(id)')
+            .eq('teacher_id', teacherData.id);
+
+          if (classesError) throw classesError;
+
+          teacherData.classes = classesData;
+        }
+
         setTeacher(teacherData);
 
         const classIds = teacherData.classes.map(c => c.id);
