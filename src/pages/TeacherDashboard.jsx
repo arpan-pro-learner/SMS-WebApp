@@ -24,9 +24,10 @@ function TeacherDashboard() {
         if (!user) throw new Error("User not found");
 
         const { data: teacherData, error: teacherError } = await supabase
-          .from('teachers')
+          .from('users')
           .select('id, name, classes:classes(id, name, students:students(id))')
           .eq('email', user.email)
+          .eq('role', 'teacher')
           .single();
         
         if (teacherError) throw teacherError;

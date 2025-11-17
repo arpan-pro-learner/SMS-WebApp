@@ -15,7 +15,7 @@ const useUserStore = create((set) => ({
         .single();
       
       if (userProfile) {
-        set({ user: { ...session.user, role: userProfile.role }, loading: false });
+        set({ user: { ...session.user, role: userProfile.role, originalRole: userProfile.role }, loading: false });
       } else {
         set({ user: null, loading: false });
       }

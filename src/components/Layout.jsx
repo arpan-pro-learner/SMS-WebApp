@@ -112,7 +112,7 @@ const Layout = ({ children }) => {
                 Current Role: <span className="font-semibold text-blue-600 capitalize">{user.role}</span>
               </span>
             )}
-            {user?.role === 'admin' && (
+            {user?.originalRole === 'admin' && (
               <div className="relative">
                 <select
                   onChange={(e) => handleRoleChange(e.target.value)}
