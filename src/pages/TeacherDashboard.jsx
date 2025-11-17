@@ -49,6 +49,8 @@ function TeacherDashboard() {
         const studentCount = teacherData.classes.reduce((acc, c) => acc + c.students.length, 0);
         setStats({ classes: classIds.length, students: studentCount });
 
+        const studentIds = teacherData.classes.flatMap(c => c.students.map(s => s.id));
+
         // Fetch aggregated attendance and marks for all assigned classes
         const { data: attendanceData, error: attendanceError } = await supabase
           .from('attendance')
@@ -65,7 +67,7 @@ function TeacherDashboard() {
         const { data: marksData, error: marksError } = await supabase
           .from('marks')
           .select('subject, marks')
-          .in('class_id', classIds);
+          .in('student_id', studentIds);
         if (marksError) throw marksError;
 
         const marksBySubject = marksData.reduce((acc, mark) => {
