@@ -13,9 +13,12 @@
     "@supabase/supabase-js": "^2.81.1",
     "@tailwindcss/vite": "^4.1.17",
     "chart.js": "^4.5.1",
+    "lucide-react": "^0.554.0",
     "react": "^19.1.1",
     "react-chartjs-2": "^5.3.1",
     "react-dom": "^19.1.1",
+    "react-hook-form": "^7.66.0",
+    "react-hot-toast": "^2.6.0",
     "react-router-dom": "^7.9.5",
     "zustand": "^5.0.8"
   },

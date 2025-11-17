@@ -1,35 +1,41 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { supabase } from '../supabaseClient';
-import { useNavigate, NavLink } from 'react-router-dom'; // Use NavLink for active state styling
+import { useNavigate, NavLink } from 'react-router-dom';
+import useUserStore from '../store/userStore';
+import { ChevronDown } from 'lucide-react';
 
 const Layout = ({ children }) => {
   const navigate = useNavigate();
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const { user, loading, fetchUser, setUserRole } = useUserStore();
 
   useEffect(() => {
-    const fetchUser = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        const { data: userProfile } = await supabase
-          .from('users')
-          .select('role')
-          .eq('id', session.user.id)
-          .single();
-        
-        if (userProfile) {
-          setUser({ ...session.user, role: userProfile.role });
-        }
-      }
-      setLoading(false);
-    };
-
     fetchUser();
-  }, []);
+  }, [fetchUser]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
+    useUserStore.setState({ user: null });
     navigate('/login');
+  };
+
+  const handleRoleChange = async (newRole) => {
+    if (!user || user.role !== 'admin') return;
+
+    try {
+      const { error } = await supabase
+        .from('users')
+        .update({ role: newRole })
+        .eq('id', user.id);
+
+      if (error) throw error;
+
+      setUserRole(newRole);
+      // Force a reload to reflect new routes and permissions
+      window.location.href = `/app/${newRole}`;
+    } catch (error) {
+      console.error('Error switching role:', error);
+      alert('Failed to switch role. Please try again.');
+    }
   };
 
   const getNavLinks = () => {
@@ -81,6 +87,7 @@ const Layout = ({ children }) => {
             <NavLink
               key={link.path}
               to={link.path}
+              end // Use 'end' to match exact paths for NavLink active state
               className={({ isActive }) =>
                 `flex items-center px-4 py-2 text-sm font-medium rounded-md transition duration-150 ease-in-out
                 ${isActive
@@ -99,11 +106,27 @@ const Layout = ({ children }) => {
       <div className="flex flex-col flex-1">
         {/* Top bar */}
         <div className="flex items-center justify-between h-16 bg-white shadow-md px-6">
-          <div>
+          <div className="flex items-center gap-4">
             {user && (
               <span className="text-sm font-medium text-gray-700">
-                Role: <span className="font-semibold text-blue-600 capitalize">{user.role}</span>
+                Current Role: <span className="font-semibold text-blue-600 capitalize">{user.role}</span>
               </span>
+            )}
+            {user?.role === 'admin' && (
+              <div className="relative">
+                <select
+                  onChange={(e) => handleRoleChange(e.target.value)}
+                  value={user.role}
+                  className="appearance-none bg-gray-100 border border-gray-300 text-gray-700 text-sm font-semibold rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full pl-3 pr-8 py-2 cursor-pointer"
+                >
+                  <option value="admin">Switch to Admin</option>
+                  <option value="teacher">Switch to Teacher</option>
+                  <option value="student">Switch to Student</option>
+                </select>
+                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
+                  <ChevronDown className="w-4 h-4" />
+                </div>
+              </div>
             )}
           </div>
           <button

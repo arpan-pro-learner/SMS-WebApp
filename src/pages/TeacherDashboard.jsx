@@ -1,282 +1,160 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { supabase } from '../supabaseClient';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement } from 'chart.js';
 import { Bar, Doughnut } from 'react-chartjs-2';
+import { BookCopy, Users, CalendarCheck, BarChart3, ArrowRight, AlertCircle, Info } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement);
 
 function TeacherDashboard() {
-  const [teacherId, setTeacherId] = useState(null);
-  const [classes, setClasses] = useState([]);
-  const [students, setStudents] = useState([]);
-  const [selectedClass, setSelectedClass] = useState('');
-  const [attendance, setAttendance] = useState({});
-  const [marks, setMarks] = useState([]);
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
-  const [loading, setLoading] = useState(false);
-  const [subjects, setSubjects] = useState(['Math', 'Science', 'English', 'History']); // Example subjects
+  const [teacher, setTeacher] = useState(null);
+  const [stats, setStats] = useState({ classes: 0, students: 0 });
+  const [attendanceSummary, setAttendanceSummary] = useState(null);
+  const [marksSummary, setMarksSummary] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    const getTeacherId = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        setTeacherId(user.id);
+    const fetchTeacherData = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error("User not found");
+
+        const { data: teacherData, error: teacherError } = await supabase
+          .from('teachers')
+          .select('id, name, classes:classes(id, name, students:students(id))')
+          .eq('email', user.email)
+          .single();
+        
+        if (teacherError) throw teacherError;
+        setTeacher(teacherData);
+
+        const classIds = teacherData.classes.map(c => c.id);
+        const studentCount = teacherData.classes.reduce((acc, c) => acc + c.students.length, 0);
+        setStats({ classes: classIds.length, students: studentCount });
+
+        // Fetch aggregated attendance and marks for all assigned classes
+        const { data: attendanceData, error: attendanceError } = await supabase
+          .from('attendance')
+          .select('status')
+          .in('class_id', classIds);
+        if (attendanceError) throw attendanceError;
+        
+        const attSummary = attendanceData.reduce((acc, record) => {
+          acc[record.status] = (acc[record.status] || 0) + 1;
+          return acc;
+        }, { Present: 0, Absent: 0, Late: 0 });
+        setAttendanceSummary(attSummary);
+
+        const { data: marksData, error: marksError } = await supabase
+          .from('marks')
+          .select('subject, marks')
+          .in('class_id', classIds);
+        if (marksError) throw marksError;
+
+        const marksBySubject = marksData.reduce((acc, mark) => {
+          if (!acc[mark.subject]) acc[mark.subject] = [];
+          acc[mark.subject].push(mark.marks);
+          return acc;
+        }, {});
+
+        const avgMarks = Object.entries(marksBySubject).map(([subject, marks]) => ({
+          subject,
+          average: marks.reduce((a, b) => a + b, 0) / marks.length,
+        }));
+        setMarksSummary(avgMarks);
+
+      } catch (err) {
+        console.error("Error fetching teacher dashboard data:", err);
+        setError("Failed to load dashboard data. Please try again.");
+      } finally {
+        setLoading(false);
       }
     };
-    getTeacherId();
-    fetchTeacherClasses();
+
+    fetchTeacherData();
   }, []);
 
-  const fetchTeacherClasses = async () => {
-    // In a real app, you'd fetch classes assigned to the logged-in teacher.
-    // For now, fetching all classes.
-    const { data, error } = await supabase.from('classes').select('*');
-    if (error) console.error('Error fetching classes:', error);
-    else setClasses(data);
-  };
-
-  useEffect(() => {
-    if (selectedClass) {
-      fetchStudentsInClass();
-    } else {
-      setStudents([]);
-    }
-  }, [selectedClass]);
-
-  const fetchStudentsInClass = async () => {
-    setLoading(true);
-    const { data, error } = await supabase.from('students').select('*').eq('class_id', selectedClass);
-    if (error) console.error('Error fetching students:', error);
-    else setStudents(data);
-    setLoading(false);
-  };
-
-  const fetchAttendanceForClass = async () => {
-    if (!selectedClass || !date) return;
-    setLoading(true);
-    const { data: attendanceData, error: attendanceError } = await supabase
-      .from('attendance')
-      .select('*')
-      .eq('class_id', selectedClass)
-      .eq('date', date);
-    
-    if (attendanceError) {
-      console.error('Error fetching attendance:', attendanceError);
-    } else {
-      const attendanceMap = attendanceData.reduce((acc, record) => {
-        acc[record.student_id] = record.status;
-        return acc;
-      }, {});
-      setAttendance(attendanceMap);
-    }
-    setLoading(false);
-  };
-
-  const fetchMarksForClass = async () => {
-    if (!selectedClass) return;
-    const { data, error } = await supabase.from('marks').select('*, students(name)').eq('class_id', selectedClass);
-    if (error) console.error('Error fetching marks:', error);
-    else setMarks(data);
-  };
-
-  useEffect(() => {
-    fetchAttendanceForClass();
-    fetchMarksForClass();
-  }, [selectedClass, date]);
-
-  const handleAttendanceChange = (studentId, status) => {
-    setAttendance({ ...attendance, [studentId]: status });
-  };
-
-  const handleSaveAttendance = async () => {
-    const records = Object.entries(attendance).map(([student_id, status]) => ({
-      student_id,
-      class_id: selectedClass,
-      date,
-      status,
-    }));
-
-    const { error } = await supabase.from('attendance').upsert(records, {
-      onConflict: 'student_id, date',
-    });
-
-    if (error) {
-      console.error('Error saving attendance:', error);
-      alert('Failed to save attendance.');
-    } else {
-      alert('Attendance saved successfully!');
-    }
-  };
-
-  // Chart Data for Attendance
-  const attendanceSummary = students.reduce((acc, student) => {
-    const status = attendance[student.id] || 'Absent'; // Default to Absent if not marked
-    acc[status] = (acc[status] || 0) + 1;
-    return acc;
-  }, { Present: 0, Absent: 0, Late: 0 });
-
-  const attendanceChartData = {
+  const attendanceChartData = useMemo(() => ({
     labels: ['Present', 'Absent', 'Late'],
-    datasets: [
-      {
-        data: [attendanceSummary.Present, attendanceSummary.Absent, attendanceSummary.Late],
-        backgroundColor: ['#16A34A', '#DC2626', '#F59E0B'],
-        hoverOffset: 4,
-      },
-    ],
-  };
+    datasets: [{
+      data: [attendanceSummary?.Present || 0, attendanceSummary?.Absent || 0, attendanceSummary?.Late || 0],
+      backgroundColor: ['#10B981', '#EF4444', '#F59E0B'],
+      hoverBackgroundColor: ['#059669', '#DC2626', '#D97706'],
+      borderColor: '#fff',
+      borderWidth: 2,
+    }],
+  }), [attendanceSummary]);
 
-  // Chart Data for Marks (example: average marks per subject)
-  const marksBySubject = marks.reduce((acc, mark) => {
-    if (!acc[mark.subject]) {
-      acc[mark.subject] = { total: 0, count: 0 };
-    }
-    acc[mark.subject].total += mark.marks;
-    acc[mark.subject].count += 1;
-    return acc;
-  }, {});
+  const marksChartData = useMemo(() => ({
+    labels: marksSummary?.map(m => m.subject) || [],
+    datasets: [{
+      label: 'Average Marks',
+      data: marksSummary?.map(m => m.average) || [],
+      backgroundColor: 'rgba(59, 130, 246, 0.7)',
+      borderColor: 'rgba(59, 130, 246, 1)',
+      borderWidth: 1,
+      borderRadius: 4,
+    }],
+  }), [marksSummary]);
 
-  const averageMarks = Object.entries(marksBySubject).map(([subject, data]) => ({
-    subject,
-    average: data.total / data.count,
-  }));
+  if (loading) {
+    return (
+      <div className="p-8 flex items-center justify-center h-96">
+        <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
 
-  const marksChartData = {
-    labels: averageMarks.map(m => m.subject),
-    datasets: [
-      {
-        label: 'Average Marks',
-        data: averageMarks.map(m => m.average),
-        backgroundColor: '#2563EB',
-      },
-    ],
-  };
-
-  return (
-    <div>
-      <h2 className="text-2xl font-bold text-gray-800 mb-6">Teacher Dashboard</h2>
-
-      {/* Class and Date Selection */}
-      <div className="bg-white p-6 rounded-lg shadow-md mb-8">
-        <h3 className="text-xl font-semibold text-gray-700 mb-4">Select Class & Date</h3>
-        <div className="flex space-x-4">
-          <select
-            value={selectedClass}
-            onChange={(e) => setSelectedClass(e.target.value)}
-            className="p-2 border rounded-lg"
-          >
-            <option value="">Select a Class</option>
-            {classes.map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
-          <input
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            className="p-2 border rounded-lg"
-          />
+  if (error) {
+    return (
+      <div className="p-8">
+        <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-6 rounded-lg shadow-md flex items-center" role="alert">
+          <AlertCircle className="w-8 h-8 mr-4" />
+          <div>
+            <p className="font-bold text-lg">An error occurred</p>
+            <p>{error}</p>
+          </div>
         </div>
       </div>
+    );
+  }
 
-      {selectedClass && (
-        <>
-          {/* Attendance Management */}
-          <div className="bg-white p-6 rounded-lg shadow-md mb-8">
-            <h3 className="text-xl font-semibold text-gray-700 mb-4">Mark Attendance for {classes.find(c => c.id === selectedClass)?.name} on {date}</h3>
-            {loading ? (
-              <p>Loading students...</p>
-            ) : students.length > 0 ? (
-              <>
-                <table className="min-w-full divide-y divide-gray-200 mb-4">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Student Name</th>
-                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {students.map((student) => (
-                      <tr key={student.id}>
-                        <td className="px-6 py-4">{student.name}</td>
-                        <td className="px-6 py-4 text-center">
-                          <div className="flex justify-center space-x-2">
-                            <button onClick={() => handleAttendanceChange(student.id, 'Present')} className={`px-3 py-1 rounded-full text-xs ${attendance[student.id] === 'Present' ? 'bg-green-500 text-white' : 'bg-gray-200'}`}>Present</button>
-                            <button onClick={() => handleAttendanceChange(student.id, 'Absent')} className={`px-3 py-1 rounded-full text-xs ${attendance[student.id] === 'Absent' ? 'bg-red-500 text-white' : 'bg-gray-200'}`}>Absent</button>
-                            <button onClick={() => handleAttendanceChange(student.id, 'Late')} className={`px-3 py-1 rounded-full text-xs ${attendance[student.id] === 'Late' ? 'bg-yellow-500 text-white' : 'bg-gray-200'}`}>Late</button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                <div className="text-right">
-                  <button onClick={handleSaveAttendance} className="bg-blue-600 text-white px-4 py-2 rounded-lg">Save Attendance</button>
-                </div>
-              </>
-            ) : (
-              <p>No students found for this class.</p>
-            )}
-          </div>
+  return (
+    <div className="p-4 sm:p-6 lg:p-8 bg-gray-50 min-h-screen">
+      <header className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-900">Teacher Dashboard</h1>
+        <p className="text-sm text-gray-600 mt-1">Welcome back, {teacher?.name || 'Teacher'}. Here's your overview.</p>
+      </header>
 
-          {/* Attendance Chart */}
-          <div className="bg-white p-6 rounded-lg shadow-md mb-8">
-            <h3 className="text-xl font-semibold text-gray-700 mb-4">Attendance Summary for {classes.find(c => c.id === selectedClass)?.name}</h3>
-            <div className="w-full md:w-1/2 mx-auto">
-              <Doughnut data={attendanceChartData} />
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
+        <div className="bg-white p-6 rounded-xl shadow-lg"><div className="flex items-center"><div className="bg-blue-100 p-3 rounded-full"><BookCopy className="w-6 h-6 text-blue-600" /></div><div className="ml-4"><p className="text-sm text-gray-500">Assigned Classes</p><p className="text-2xl font-bold text-gray-900">{stats.classes}</p></div></div></div>
+        <div className="bg-white p-6 rounded-xl shadow-lg"><div className="flex items-center"><div className="bg-green-100 p-3 rounded-full"><Users className="w-6 h-6 text-green-600" /></div><div className="ml-4"><p className="text-sm text-gray-500">Total Students</p><p className="text-2xl font-bold text-gray-900">{stats.students}</p></div></div></div>
+        <Link to="/teacher-attendance" className="block bg-white p-6 rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300"><div className="flex items-center"><div className="bg-yellow-100 p-3 rounded-full"><CalendarCheck className="w-6 h-6 text-yellow-600" /></div><div className="ml-4"><p className="text-sm text-gray-500">Manage Attendance</p><p className="text-lg font-semibold text-gray-900 flex items-center">Go to page <ArrowRight className="w-4 h-4 ml-1" /></p></div></div></Link>
+        <Link to="/teacher-marks" className="block bg-white p-6 rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300"><div className="flex items-center"><div className="bg-red-100 p-3 rounded-full"><BarChart3 className="w-6 h-6 text-red-600" /></div><div className="ml-4"><p className="text-sm text-gray-500">Manage Marks</p><p className="text-lg font-semibold text-gray-900 flex items-center">Go to page <ArrowRight className="w-4 h-4 ml-1" /></p></div></div></Link>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="bg-white p-6 rounded-xl shadow-lg">
+          <h2 className="text-xl font-semibold text-gray-800 mb-4">Overall Attendance Summary</h2>
+          {attendanceSummary ? (
+            <div className="relative h-72 w-full max-w-sm mx-auto">
+              <Doughnut data={attendanceChartData} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }} />
             </div>
-          </div>
-
-          {/* Marks Management (Simplified for Dashboard) */}
-          <div className="bg-white p-6 rounded-lg shadow-md mb-8">
-            <h3 className="text-xl font-semibold text-gray-700 mb-4">Marks Overview for {classes.find(c => c.id === selectedClass)?.name}</h3>
-            {marks.length > 0 ? (
-              <>
-                <table className="min-w-full divide-y divide-gray-200 mb-4">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Student</th>
-                      {subjects.map(subject => (
-                        <th key={subject} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{subject}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {students.map(student => {
-                      const studentMarks = marks.filter(m => m.student_id === student.id);
-                      return (
-                        <tr key={student.id}>
-                          <td className="px-6 py-4">{student.name}</td>
-                          {subjects.map(subject => (
-                            <td key={subject} className="px-6 py-4">
-                              {studentMarks.find(m => m.subject === subject)?.marks || 'N/A'}
-                            </td>
-                          ))}
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-                <div className="text-right">
-                  <button onClick={() => alert('Navigate to full marks management')} className="bg-blue-600 text-white px-4 py-2 rounded-lg">Manage Marks</button>
-                </div>
-              </>
-            ) : (
-              <p>No marks recorded for this class yet.</p>
-            )}
-          </div>
-
-          {/* Marks Chart */}
-          <div className="bg-white p-6 rounded-lg shadow-md mb-8">
-            <h3 className="text-xl font-semibold text-gray-700 mb-4">Average Marks by Subject for {classes.find(c => c.id === selectedClass)?.name}</h3>
-            {averageMarks.length > 0 ? (
-              <Bar data={marksChartData} />
-            ) : (
-              <p>No marks data to display chart.</p>
-            )}
-          </div>
-        </>
-      )}
+          ) : <Info className="mx-auto text-gray-400" />}
+        </div>
+        <div className="bg-white p-6 rounded-xl shadow-lg">
+          <h2 className="text-xl font-semibold text-gray-800 mb-4">Average Marks Across Subjects</h2>
+          {marksSummary && marksSummary.length > 0 ? (
+            <div className="relative h-72">
+              <Bar data={marksChartData} options={{ responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, max: 100 } }, plugins: { legend: { display: false } } }} />
+            </div>
+          ) : <Info className="mx-auto text-gray-400" />}
+        </div>
+      </div>
     </div>
   );
 }

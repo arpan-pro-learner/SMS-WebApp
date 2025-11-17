@@ -2,45 +2,47 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
 import { Doughnut } from 'react-chartjs-2';
+import { Calendar, CheckCircle, XCircle, Clock } from 'lucide-react';
 
 ChartJS.register(ArcElement, Tooltip, Legend);
 
 function StudentAttendance() {
   const [attendance, setAttendance] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [student, setStudent] = useState(null);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     const fetchStudentAndAttendance = async () => {
       setLoading(true);
-      // Placeholder for fetching the logged-in student's ID
-      // In a real app, you'd get this from the user session
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (user) {
-        const { data: studentData, error: studentError } = await supabase
-          .from('students')
-          .select('*')
-          .eq('email', user.email)
-          .single();
+      setError(null);
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        if (user) {
+          const { data: studentData, error: studentError } = await supabase
+            .from('students')
+            .select('id')
+            .eq('email', user.email)
+            .single();
 
-        if (studentError) {
-          console.error('Error fetching student data:', studentError);
-        } else {
-          setStudent(studentData);
-          const { data, error } = await supabase
+          if (studentError) throw studentError;
+
+          const { data, error: attendanceError } = await supabase
             .from('attendance')
-            .select('*')
-            .eq('student_id', studentData.id);
+            .select('id, date, status')
+            .eq('student_id', studentData.id)
+            .order('date', { ascending: false });
 
-          if (error) {
-            console.error('Error fetching attendance:', error);
-          } else {
-            setAttendance(data);
-          }
+          if (attendanceError) throw attendanceError;
+          
+          setAttendance(data);
         }
+      } catch (err) {
+        console.error('Error fetching attendance data:', err);
+        setError('Failed to fetch attendance data. Please try again later.');
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
 
     fetchStudentAndAttendance();
@@ -63,53 +65,116 @@ function StudentAttendance() {
           attendanceSummary.Absent,
           attendanceSummary.Late,
         ],
-        backgroundColor: ['#16A34A', '#DC2626', '#F59E0B'],
-        hoverBackgroundColor: ['#15803D', '#B91C1C', '#D97706'],
+        backgroundColor: ['#10B981', '#EF4444', '#F59E0B'],
+        hoverBackgroundColor: ['#059669', '#DC2626', '#D97706'],
+        borderColor: 'transparent',
+        borderWidth: 0,
       },
     ],
   };
 
+  const chartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    cutout: '70%',
+    plugins: {
+      legend: {
+        display: false,
+      },
+    },
+  };
+
+  const renderStatusBadge = (status) => {
+    const baseClasses = 'px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full';
+    switch (status) {
+      case 'Present':
+        return <span className={`${baseClasses} bg-green-100 text-green-800`}>{status}</span>;
+      case 'Absent':
+        return <span className={`${baseClasses} bg-red-100 text-red-800`}>{status}</span>;
+      case 'Late':
+        return <span className={`${baseClasses} bg-yellow-100 text-yellow-800`}>{status}</span>;
+      default:
+        return <span className={`${baseClasses} bg-gray-100 text-gray-800`}>{status}</span>;
+    }
+  };
+
   return (
-    <div>
-      <h1 className="text-2xl font-bold mb-6">My Attendance</h1>
+    <div className="p-4 sm:p-6 lg:p-8 bg-gray-50 min-h-screen">
+      <header className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-900">My Attendance</h1>
+        <p className="text-sm text-gray-600 mt-1">A summary of your attendance records.</p>
+      </header>
+
       {loading ? (
-        <p>Loading attendance...</p>
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-blue-600"></div>
+        </div>
+      ) : error ? (
+        <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-md shadow-sm" role="alert">
+          <p className="font-bold">An error occurred</p>
+          <p>{error}</p>
+        </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="md:col-span-1 bg-white p-6 rounded-lg shadow-md">
-            <h2 className="text-lg font-semibold mb-4">Summary</h2>
-            <Doughnut data={chartData} />
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+          {/* Chart and Summary Section */}
+          <div className="xl:col-span-1 bg-white p-6 rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-300">
+            <h2 className="text-xl font-semibold text-gray-800 mb-4 flex items-center">
+              <CheckCircle className="w-6 h-6 mr-2 text-blue-600" />
+              Attendance Summary
+            </h2>
+            <div className="relative h-64 w-full mx-auto mb-6">
+              <Doughnut data={chartData} options={chartOptions} />
+            </div>
+            <div className="space-y-3">
+              <div className="flex justify-between items-center text-sm font-medium">
+                <span className="flex items-center text-green-600"><CheckCircle className="w-4 h-4 mr-2" /> Present</span>
+                <span>{attendanceSummary.Present} days</span>
+              </div>
+              <div className="flex justify-between items-center text-sm font-medium">
+                <span className="flex items-center text-red-600"><XCircle className="w-4 h-4 mr-2" /> Absent</span>
+                <span>{attendanceSummary.Absent} days</span>
+              </div>
+              <div className="flex justify-between items-center text-sm font-medium">
+                <span className="flex items-center text-yellow-600"><Clock className="w-4 h-4 mr-2" /> Late</span>
+                <span>{attendanceSummary.Late} days</span>
+              </div>
+            </div>
           </div>
-          <div className="md:col-span-2 bg-white p-6 rounded-lg shadow-md">
-            <h2 className="text-lg font-semibold mb-4">Details</h2>
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {attendance.map((record) => (
-                  <tr key={record.id}>
-                    <td className="px-6 py-4">{record.date}</td>
-                    <td className="px-6 py-4">
-                      <span
-                        className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                          record.status === 'Present'
-                            ? 'bg-green-100 text-green-800'
-                            : record.status === 'Absent'
-                            ? 'bg-red-100 text-red-800'
-                            : 'bg-yellow-100 text-yellow-800'
-                        }`}
-                      >
-                        {record.status}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+
+          {/* Attendance Details Table */}
+          <div className="xl:col-span-2 bg-white p-6 rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-300">
+            <h2 className="text-xl font-semibold text-gray-800 mb-4 flex items-center">
+              <Calendar className="w-6 h-6 mr-2 text-blue-600" />
+              Detailed Records
+            </h2>
+            {attendance.length === 0 ? (
+              <div className="text-center py-12">
+                <Calendar size={48} className="mx-auto text-gray-400" />
+                <p className="mt-4 text-gray-500">No attendance records found.</p>
+                <p className="text-sm text-gray-400">Your attendance history will appear here.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto -mx-6">
+                <table className="min-w-full">
+                  <thead className="border-b border-gray-200">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {attendance.map((record) => (
+                      <tr key={record.id} className="hover:bg-gray-50 transition-colors duration-200">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-800">{new Date(record.date).toLocaleDateString()}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                          {renderStatusBadge(record.status)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </div>
       )}
