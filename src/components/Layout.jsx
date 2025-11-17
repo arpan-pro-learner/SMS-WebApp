@@ -19,7 +19,7 @@ const Layout = ({ children }) => {
   };
 
   const handleRoleChange = async (newRole) => {
-    if (!user || user.role !== 'admin') return;
+    if (!user || user.originalRole !== 'admin') return;
 
     try {
       const { error } = await supabase
