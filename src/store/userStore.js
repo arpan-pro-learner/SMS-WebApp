@@ -1,4 +1,4 @@
-import create from 'zustand';
+import { create } from 'zustand';
 import { supabase } from '../supabaseClient';
 
 const useUserStore = create((set) => ({
