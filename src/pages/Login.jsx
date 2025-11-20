@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { supabase } from '../supabaseClient';
 import { useNavigate, Link } from 'react-router-dom';
+import { seedSupabase } from '../lib/seedSupabase';
 
 function Login() {
   const [email, setEmail] = useState('');
@@ -39,36 +40,44 @@ function Login() {
   const handleGuestLogin = async () => {
     setLoading(true);
     setError(null);
-    const guestEmail = 'guest@example.com';
-    const guestPassword = 'password';
+    const guestEmail = 'lanened503@okcdeals.com';
+    const guestPassword = 'GuestPassword!12345';
 
     try {
       // First, try to sign in
-      const { error: signInError } = await supabase.auth.signInWithPassword({
+      let { error: signInError } = await supabase.auth.signInWithPassword({
         email: guestEmail,
         password: guestPassword,
       });
 
       if (signInError) {
+        console.error('Sign-in error:', signInError); // Added for debugging
         // If sign-in fails because the user does not exist, then sign them up
         if (signInError.message.includes('Invalid login credentials')) {
+          console.log('Attempting to sign up with email:', guestEmail); // Added for debugging
           const { data: authData, error: signUpError } = await supabase.auth.signUp({
             email: guestEmail,
             password: guestPassword,
           });
 
-          if (signUpError) throw signUpError;
+          if (signUpError) {
+            console.error('Sign-up error:', signUpError); // Added for debugging
+            throw signUpError;
+          }
 
           if (authData.user) {
             const { error: profileError } = await supabase
               .from('users')
-              .insert([{ id: authData.user.id, name: 'Guest User', email: guestEmail, role: 'student' }]);
+              .insert([{ id: authData.user.id, name: 'Guest Admin', email: guestEmail, role: 'admin' }]);
             if (profileError) throw profileError;
           }
         } else {
           throw signInError;
         }
       }
+      
+      // Seed the database with mock data
+      await seedSupabase();
 
       navigate('/app');
 

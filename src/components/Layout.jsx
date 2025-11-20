@@ -18,24 +18,12 @@ const Layout = ({ children }) => {
     navigate('/login');
   };
 
-  const handleRoleChange = async (newRole) => {
+  const handleRoleChange = (newRole) => {
     if (!user || user.originalRole !== 'admin') return;
 
-    try {
-      const { error } = await supabase
-        .from('users')
-        .update({ role: newRole })
-        .eq('id', user.id);
-
-      if (error) throw error;
-
-      setUserRole(newRole);
-      // Force a reload to reflect new routes and permissions
-      window.location.href = `/app/${newRole}`;
-    } catch (error) {
-      console.error('Error switching role:', error);
-      alert('Failed to switch role. Please try again.');
-    }
+    setUserRole(newRole);
+    // Navigate to the new role's dashboard to refresh the context
+    navigate(`/app/${newRole}`);
   };
 
   const getNavLinks = () => {

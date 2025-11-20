@@ -51,11 +51,11 @@ const ProtectedRoute = ({ allowedRoles }) => {
     // This could be the user's own dashboard or an unauthorized page
     switch (user.role) {
       case 'admin':
-        return <Navigate to="/admin" replace />;
+        return <Navigate to="/app/admin" replace />;
       case 'teacher':
-        return <Navigate to="/teacher" replace />;
+        return <Navigate to="/app/teacher" replace />;
       case 'student':
-        return <Navigate to="/student" replace />;
+        return <Navigate to="/app/student" replace />;
       default:
         return <Navigate to="/login" replace />;
     }

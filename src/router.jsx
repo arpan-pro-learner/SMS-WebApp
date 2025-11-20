@@ -65,7 +65,7 @@ const router = createBrowserRouter([
         element: <Announcements />,
       },
       {
-        path: '/app',
+        index: true,
         element: <RootRedirect />,
       }
     ],
