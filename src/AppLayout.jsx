@@ -1,11 +1,15 @@
 import React from 'react';
 import { Outlet } from 'react-router-dom';
-import Layout from './components/Layout'; // Assuming you have a Layout component
+import Layout from './components/Layout';
+import useUserStore from './store/userStore';
 
 function AppLayout() {
+  const { user } = useUserStore();
+  const role = user?.role; // Get the current role from the store
+
   return (
     <Layout>
-      <Outlet />
+      <Outlet key={role} />
     </Layout>
   );
 }
