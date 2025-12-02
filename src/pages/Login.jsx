@@ -37,55 +37,10 @@ function Login() {
     }
   };
 
-  const handleGuestLogin = async () => {
-    setLoading(true);
-    setError(null);
-    const guestEmail = 'lanened503@okcdeals.com';
-    const guestPassword = 'GuestPassword!12345';
-
-    try {
-      // First, try to sign in
-      let { error: signInError } = await supabase.auth.signInWithPassword({
-        email: guestEmail,
-        password: guestPassword,
-      });
-
-      if (signInError) {
-        console.error('Sign-in error:', signInError); // Added for debugging
-        // If sign-in fails because the user does not exist, then sign them up
-        if (signInError.message.includes('Invalid login credentials')) {
-          console.log('Attempting to sign up with email:', guestEmail); // Added for debugging
-          const { data: authData, error: signUpError } = await supabase.auth.signUp({
-            email: guestEmail,
-            password: guestPassword,
-          });
-
-          if (signUpError) {
-            console.error('Sign-up error:', signUpError); // Added for debugging
-            throw signUpError;
-          }
-
-          if (authData.user) {
-            const { error: profileError } = await supabase
-              .from('users')
-              .insert([{ id: authData.user.id, name: 'Guest Admin', email: guestEmail, role: 'admin' }]);
-            if (profileError) throw profileError;
-          }
-        } else {
-          throw signInError;
-        }
-      }
-      
-      // Seed the database with mock data
-      await seedSupabase();
-
-      navigate('/app');
-
-    } catch (error) {
-      setError(error.message);
-    } finally {
-      setLoading(false);
-    }
+  const handleDemoLogin = () => {
+    setEmail('demo@example.com');
+    setPassword('password');
+    // The user will still need to click the main "Sign In" button
   };
 
   return (
@@ -165,11 +120,11 @@ function Login() {
           </form>
           <div className="mt-6">
             <button
-              onClick={handleGuestLogin}
+              onClick={handleDemoLogin}
               disabled={loading}
               className="w-full flex justify-center py-2 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-gray-200 hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:opacity-50 transition duration-150 ease-in-out"
             >
-              {loading ? 'Loading...' : 'Login as Guest'}
+              {loading ? 'Loading...' : 'Login as Demo User'}
             </button>
           </div>
         </div>

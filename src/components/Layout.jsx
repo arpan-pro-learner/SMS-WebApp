@@ -67,8 +67,8 @@ const Layout = ({ children }) => {
     <div className="flex h-screen bg-gray-50">
       {/* Sidebar */}
       <div className="w-64 bg-white shadow-lg flex flex-col">
-        <div className="flex items-center justify-center h-20 border-b border-gray-200">
-          <h1 className="text-2xl font-bold text-blue-600">SMS</h1>
+        <div className="flex items-center justify-center h-20 border-b border-gray-200 px-4">
+          <img src="/logoipsum-352.png" alt="Logo" className="h-10" />
         </div>
         <nav className="flex-1 px-2 py-4 space-y-1">
           {getNavLinks().map((link) => (

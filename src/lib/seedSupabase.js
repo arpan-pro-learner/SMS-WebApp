@@ -35,6 +35,49 @@ const announcements = [
 // Seeding Function
 export const seedSupabase = async () => {
   try {
+    // 0. Ensure Demo Admin User exists
+    const demoEmail = 'demo@example.com';
+    const demoPassword = 'password';
+
+    // Check if the user already exists in the auth schema
+    // Note: This is a simplified check. In a real app, you might not have access to query auth.users.
+    // We are assuming that if a profile exists, the auth user does too.
+    const { data: existingUser, error: userCheckError } = await supabase
+      .from('users')
+      .select('id')
+      .eq('email', demoEmail)
+      .single();
+
+    if (userCheckError && userCheckError.code !== 'PGRST116') {
+      console.error('Error checking for demo user:', userCheckError);
+    }
+    
+    if (!existingUser) {
+      console.log('Creating demo admin user...');
+      const { data: authData, error: signUpError } = await supabase.auth.signUp({
+        email: demoEmail,
+        password: demoPassword,
+      });
+
+      if (signUpError) {
+        // If the user already exists in auth but not in the public.users table
+        if (signUpError.message.includes('User already registered')) {
+            console.warn('Auth user exists but profile was missing. You may need to clean up inconsistent data.');
+        } else {
+            throw signUpError;
+        }
+      }
+
+      // If signUp was successful, authData.user will be defined
+      if (authData.user) {
+        const { error: profileError } = await supabase
+          .from('users')
+          .insert([{ id: authData.user.id, name: 'Demo Admin', email: demoEmail, role: 'admin' }]);
+        if (profileError) throw profileError;
+        console.log('Demo admin user created successfully.');
+      }
+    }
+
     // 1. Check if data has already been seeded to prevent duplication
     const { data: existingTeacher, error: checkError } = await supabase
       .from('teachers')
@@ -51,6 +94,7 @@ export const seedSupabase = async () => {
       console.log('Mock data already exists. Skipping seeding.');
       return;
     }
+
 
     console.log('Seeding mock data...');
 
