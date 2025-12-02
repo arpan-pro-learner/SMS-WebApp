@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
 import SignUp from './pages/SignUp';
@@ -17,6 +17,7 @@ import TeacherMarks from './pages/TeacherMarks';
 import StudentAttendance from './pages/StudentAttendance';
 import StudentMarks from './pages/StudentMarks';
 import Announcements from './pages/Announcements';
+import useUserStore from './store/userStore';
 
 const router = createBrowserRouter([
   {
@@ -72,21 +73,8 @@ const router = createBrowserRouter([
   },
 ]);
 
-import useUserStore from './store/userStore';
-
-// ... (rest of the imports)
-
-const router = createBrowserRouter([
-  // ... (rest of the router config)
-]);
-
 function RootRedirect() {
   const { user, loading } = useUserStore();
-
-  useEffect(() => {
-    // The user is fetched by the Layout, but we might land here first.
-    // The store's loading state will tell us what's happening.
-  }, []);
 
   if (loading) {
     return <div>Loading...</div>;
