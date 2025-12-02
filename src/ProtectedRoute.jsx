@@ -1,42 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
-import { supabase } from './supabaseClient';
+import useUserStore from './store/userStore';
 
 const ProtectedRoute = ({ allowedRoles }) => {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchUser = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        const { data: userProfile, error } = await supabase
-          .from('users')
-          .select('role')
-          .eq('id', session.user.id)
-          .single();
-        
-        if (userProfile) {
-          setUser({ ...session.user, role: userProfile.role });
-        }
-      }
-      setLoading(false);
-    };
-
-    fetchUser();
-
-    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user) {
-        fetchUser();
-      } else {
-        setUser(null);
-      }
-    });
-
-    return () => {
-      authListener.subscription.unsubscribe();
-    };
-  }, []);
+  const { user, loading } = useUserStore();
 
   if (loading) {
     return <div>Loading...</div>; // Or a spinner component
@@ -46,10 +13,13 @@ const ProtectedRoute = ({ allowedRoles }) => {
     return <Navigate to="/login" replace />;
   }
 
-  if (allowedRoles && !allowedRoles.includes(user.role)) {
-    // Redirect to a default page if role is not allowed
+  // Use the role from the Zustand store
+  const currentRole = user.role;
+
+  if (allowedRoles && !allowedRoles.includes(currentRole)) {
+    // Redirect to a default page if the current role is not allowed
     // This could be the user's own dashboard or an unauthorized page
-    switch (user.role) {
+    switch (currentRole) {
       case 'admin':
         return <Navigate to="/app/admin" replace />;
       case 'teacher':
@@ -57,6 +27,7 @@ const ProtectedRoute = ({ allowedRoles }) => {
       case 'student':
         return <Navigate to="/app/student" replace />;
       default:
+        // If the role is unknown, send to login
         return <Navigate to="/login" replace />;
     }
   }

@@ -72,28 +72,20 @@ const router = createBrowserRouter([
   },
 ]);
 
+import useUserStore from './store/userStore';
+
+// ... (rest of the imports)
+
+const router = createBrowserRouter([
+  // ... (rest of the router config)
+]);
+
 function RootRedirect() {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const { user, loading } = useUserStore();
 
   useEffect(() => {
-    const fetchUser = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        const { data: userProfile } = await supabase
-          .from('users')
-          .select('role')
-          .eq('id', session.user.id)
-          .single();
-        
-        if (userProfile) {
-          setUser({ ...session.user, role: userProfile.role });
-        }
-      }
-      setLoading(false);
-    };
-
-    fetchUser();
+    // The user is fetched by the Layout, but we might land here first.
+    // The store's loading state will tell us what's happening.
   }, []);
 
   if (loading) {
@@ -104,7 +96,10 @@ function RootRedirect() {
     return <Navigate to="/login" replace />;
   }
 
-  switch (user.role) {
+  // Use the role from the store, which could be the original or the switched-to role
+  const currentRole = user.role;
+
+  switch (currentRole) {
     case 'admin':
       return <Navigate to="/app/admin" replace />;
     case 'teacher':
