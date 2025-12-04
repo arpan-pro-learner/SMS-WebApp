@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../supabaseClient';
 import { Link } from 'react-router-dom';
-import { CheckCircle, XCircle, Award, Megaphone, ArrowRight, AlertCircle } from 'lucide-react';
+import { CircleCheckBig, CircleX, Award, Megaphone, ArrowRight, AlertCircle } from 'lucide-react';
 import useUserStore from '../store/userStore';
 
 const StatCard = ({ title, value, icon, color, linkTo }) => (
@@ -136,8 +136,8 @@ function StudentDashboard() {
       </header>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6 mb-8">
-        <StatCard title="Days Present" value={attendanceSummary.present} icon={<CheckCircle className="w-6 h-6 text-green-600" />} color="text-green-600" linkTo="/app/student/attendance" />
-        <StatCard title="Days Absent" value={attendanceSummary.absent} icon={<XCircle className="w-6 h-6 text-red-600" />} color="text-red-600" linkTo="/app/student/attendance" />
+        <StatCard title="Days Present" value={attendanceSummary.present} icon={<CircleCheckBig className="w-6 h-6 text-green-600" />} color="text-green-600" linkTo="/app/student/attendance" />
+        <StatCard title="Days Absent" value={attendanceSummary.absent} icon={<CircleX className="w-6 h-6 text-red-600" />} color="text-red-600" linkTo="/app/student/attendance" />
         <StatCard title="Average Score" value={`${averageMarks}%`} icon={<Award className="w-6 h-6 text-purple-600" />} color="text-purple-600" linkTo="/app/student/marks" />
       </div>
 
