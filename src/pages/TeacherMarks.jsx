@@ -3,6 +3,7 @@ import { supabase } from '../supabaseClient';
 import { useForm, Controller } from 'react-hook-form';
 import toast from 'react-hot-toast';
 import { BookMarked, User, Edit, Trash2, Save, AlertCircle, Info } from 'lucide-react';
+import useUserStore from '../store/userStore';
 
 function TeacherMarks() {
   const [classes, setClasses] = useState([]);
@@ -12,26 +13,50 @@ function TeacherMarks() {
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [loading, setLoading] = useState({ classes: false, students: false, marks: false });
   const [error, setError] = useState(null);
+  const { user } = useUserStore();
 
   const { control, handleSubmit, reset, setValue } = useForm();
 
-  const fetchTeacherClasses = useCallback(async () => {
-    setLoading(prev => ({ ...prev, classes: true }));
-    try {
-      const { data, error } = await supabase.from('classes').select('id, name');
-      if (error) throw error;
-      setClasses(data);
-    } catch (err) {
-      setError('Failed to fetch classes.');
-      toast.error('Failed to fetch classes.');
-    } finally {
-      setLoading(prev => ({ ...prev, classes: false }));
-    }
-  }, []);
-
   useEffect(() => {
+    const fetchTeacherClasses = async () => {
+      if (!user) return;
+      setLoading(prev => ({ ...prev, classes: true }));
+      setError(null);
+      try {
+        let teacherId = null;
+
+        if (user.originalRole === 'admin' && user.role === 'teacher') {
+          const { data: teachers, error: teacherError } = await supabase
+            .from('users')
+            .select('id')
+            .eq('role', 'teacher')
+            .limit(1);
+
+          if (teacherError) throw teacherError;
+          if (!teachers || teachers.length === 0) throw new Error("No teachers found to display.");
+          teacherId = teachers[0].id;
+        } else {
+          teacherId = user.id;
+        }
+
+        const { data, error: classesError } = await supabase
+          .from('classes')
+          .select('id, name')
+          .eq('teacher_id', teacherId);
+        
+        if (classesError) throw classesError;
+        setClasses(data);
+
+      } catch (err) {
+        setError('Failed to fetch classes.');
+        toast.error('Failed to fetch classes.');
+      } finally {
+        setLoading(prev => ({ ...prev, classes: false }));
+      }
+    };
+
     fetchTeacherClasses();
-  }, [fetchTeacherClasses]);
+  }, [user]);
 
   const fetchStudentsInClass = useCallback(async (classId) => {
     if (!classId) {
@@ -63,6 +88,7 @@ function TeacherMarks() {
       if (error) throw error;
       setMarks(data);
       // Set form values
+      reset(); // Clear previous values first
       data.forEach(mark => setValue(mark.subject, mark.marks));
     } catch (err) {
       setError('Failed to fetch marks.');
@@ -70,7 +96,7 @@ function TeacherMarks() {
     } finally {
       setLoading(prev => ({ ...prev, marks: false }));
     }
-  }, [setValue]);
+  }, [setValue, reset]);
 
   useEffect(() => {
     fetchStudentsInClass(selectedClass);
@@ -81,13 +107,24 @@ function TeacherMarks() {
   }, [selectedStudent, fetchMarksForStudent]);
 
   const onSaveChanges = async (formData) => {
+    if (!selectedStudent) {
+      toast.error("Please select a student first.");
+      return;
+    }
     const toastId = toast.loading('Saving marks...');
     try {
-      const records = Object.entries(formData).map(([subject, markValue]) => ({
-        student_id: selectedStudent.id,
-        subject,
-        marks: parseInt(markValue, 10),
+      const records = Object.entries(formData)
+        .filter(([, markValue]) => markValue !== '' && !isNaN(markValue))
+        .map(([subject, markValue]) => ({
+            student_id: selectedStudent.id,
+            subject,
+            marks: parseInt(markValue, 10),
       }));
+
+      if (records.length === 0) {
+        toast.success('No marks to save.', { id: toastId });
+        return;
+      }
 
       const { error } = await supabase.from('marks').upsert(records, { onConflict: 'student_id, subject' });
       if (error) throw error;
@@ -100,7 +137,7 @@ function TeacherMarks() {
   };
   
   const handleStudentChange = (studentId) => {
-    const student = students.find(s => s.id === studentId);
+    const student = students.find(s => s.id == studentId);
     setSelectedStudent(student);
     reset(); // Reset form on student change
   };
@@ -128,7 +165,7 @@ function TeacherMarks() {
           <select
             id="class-select"
             value={selectedClass}
-            onChange={(e) => setSelectedClass(e.target.value)}
+            onChange={(e) => {setSelectedClass(e.target.value); setSelectedStudent(null);}}
             className="w-full p-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500"
             disabled={loading.classes}
           >

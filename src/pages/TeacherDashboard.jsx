@@ -7,6 +7,8 @@ import { Link } from 'react-router-dom';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement);
 
+import useUserStore from '../store/userStore';
+
 function TeacherDashboard() {
   const [teacher, setTeacher] = useState(null);
   const [stats, setStats] = useState({ classes: 0, students: 0 });
@@ -14,23 +16,41 @@ function TeacherDashboard() {
   const [marksSummary, setMarksSummary] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const { user } = useUserStore();
 
   useEffect(() => {
     const fetchTeacherData = async () => {
       setLoading(true);
       setError(null);
       try {
-        const { data: { user } } = await supabase.auth.getUser();
         if (!user) throw new Error("User not found");
 
-        const { data: teacherData, error: teacherError } = await supabase
-          .from('users')
-          .select('id, name')
-          .eq('email', user.email)
-          .eq('role', 'teacher')
-          .single();
-        
-        if (teacherError) throw teacherError;
+        let teacherData = null;
+
+        // Case 1: Admin is viewing as a teacher
+        if (user.originalRole === 'admin' && user.role === 'teacher') {
+          const { data: teachers, error: teacherError } = await supabase
+            .from('users')
+            .select('id, name')
+            .eq('role', 'teacher')
+            .limit(1);
+          
+          if (teacherError) throw teacherError;
+          if (!teachers || teachers.length === 0) throw new Error("No teachers found in the database to display.");
+          teacherData = teachers[0];
+        } else {
+        // Case 2: A regular teacher is viewing their own dashboard
+          const { data: teachers, error: teacherError } = await supabase
+            .from('users')
+            .select('id, name')
+            .eq('email', user.email)
+            .eq('role', 'teacher')
+            .limit(1);
+          
+          if (teacherError) throw teacherError;
+          if (!teachers || teachers.length === 0) throw new Error("Could not find a matching teacher profile for the logged-in user.");
+          teacherData = teachers[0];
+        }
         
         if (teacherData) {
           const { data: classesData, error: classesError } = await supabase
@@ -40,7 +60,7 @@ function TeacherDashboard() {
 
           if (classesError) throw classesError;
 
-          teacherData.classes = classesData;
+          teacherData.classes = classesData || [];
         }
 
         setTeacher(teacherData);
@@ -48,6 +68,12 @@ function TeacherDashboard() {
         const classIds = teacherData.classes.map(c => c.id);
         const studentCount = teacherData.classes.reduce((acc, c) => acc + c.students.length, 0);
         setStats({ classes: classIds.length, students: studentCount });
+        
+        if (classIds.length === 0) {
+            setAttendanceSummary({ Present: 0, Absent: 0, Late: 0 });
+            setMarksSummary([]);
+            return;
+        };
 
         const studentIds = teacherData.classes.flatMap(c => c.students.map(s => s.id));
 
@@ -64,23 +90,27 @@ function TeacherDashboard() {
         }, { Present: 0, Absent: 0, Late: 0 });
         setAttendanceSummary(attSummary);
 
-        const { data: marksData, error: marksError } = await supabase
-          .from('marks')
-          .select('subject, marks')
-          .in('student_id', studentIds);
-        if (marksError) throw marksError;
+        if (studentIds.length > 0) {
+            const { data: marksData, error: marksError } = await supabase
+              .from('marks')
+              .select('subject, marks')
+              .in('student_id', studentIds);
+            if (marksError) throw marksError;
 
-        const marksBySubject = marksData.reduce((acc, mark) => {
-          if (!acc[mark.subject]) acc[mark.subject] = [];
-          acc[mark.subject].push(mark.marks);
-          return acc;
-        }, {});
+            const marksBySubject = marksData.reduce((acc, mark) => {
+              if (!acc[mark.subject]) acc[mark.subject] = [];
+              acc[mark.subject].push(mark.marks);
+              return acc;
+            }, {});
 
-        const avgMarks = Object.entries(marksBySubject).map(([subject, marks]) => ({
-          subject,
-          average: marks.reduce((a, b) => a + b, 0) / marks.length,
-        }));
-        setMarksSummary(avgMarks);
+            const avgMarks = Object.entries(marksBySubject).map(([subject, marks]) => ({
+              subject,
+              average: marks.reduce((a, b) => a + b, 0) / marks.length,
+            }));
+            setMarksSummary(avgMarks);
+        } else {
+            setMarksSummary([]);
+        }
 
       } catch (err) {
         console.error("Error fetching teacher dashboard data:", err);
@@ -91,7 +121,7 @@ function TeacherDashboard() {
     };
 
     fetchTeacherData();
-  }, []);
+  }, [user]);
 
   const attendanceChartData = useMemo(() => ({
     labels: ['Present', 'Absent', 'Late'],

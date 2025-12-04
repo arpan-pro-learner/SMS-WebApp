@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
+import useUserStore from '../store/userStore';
 
 function TeacherAttendance() {
   const [classes, setClasses] = useState([]);
@@ -9,60 +10,91 @@ function TeacherAttendance() {
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const { user } = useUserStore();
 
   useEffect(() => {
+    const fetchTeacherClasses = async () => {
+      if (!user) return;
+
+      setLoading(true);
+      setError(null);
+      try {
+        let teacherId = null;
+
+        if (user.originalRole === 'admin' && user.role === 'teacher') {
+          const { data: teachers, error: teacherError } = await supabase
+            .from('users')
+            .select('id')
+            .eq('role', 'teacher')
+            .limit(1);
+            
+          if (teacherError) throw teacherError;
+          if (!teachers || teachers.length === 0) throw new Error("No teachers found to display.");
+          teacherId = teachers[0].id;
+        } else {
+          teacherId = user.id;
+        }
+
+        const { data, error: classesError } = await supabase
+          .from('classes')
+          .select('*')
+          .eq('teacher_id', teacherId);
+        
+        if (classesError) {
+          throw classesError;
+        } else {
+          setClasses(data);
+        }
+      } catch (err) {
+        console.error('Error fetching teacher data:', err);
+        setError('Failed to fetch your classes.');
+      }
+      setLoading(false);
+    };
+
     fetchTeacherClasses();
-  }, []);
-
-  const fetchTeacherClasses = async () => {
-    setError(null);
-    const { data, error } = await supabase.from('classes').select('*');
-    if (error) {
-      console.error('Error fetching classes:', error);
-      setError('Failed to fetch classes.');
-    } else {
-      setClasses(data);
-    }
-  };
-
-  const fetchStudentsAndAttendance = async () => {
-    if (!selectedClass || !date) return;
-    setLoading(true);
-    setError(null);
-
-    // Fetch students in the selected class
-    const { data: studentsData, error: studentsError } = await supabase
-      .from('students')
-      .select('*')
-      .eq('class_id', selectedClass);
-    if (studentsError) {
-      console.error('Error fetching students:', studentsError);
-      setError('Failed to fetch students.');
-    } else {
-      setStudents(studentsData);
-    }
-
-    // Fetch existing attendance for the selected date
-    const { data: attendanceData, error: attendanceError } = await supabase
-      .from('attendance')
-      .select('*')
-      .eq('class_id', selectedClass)
-      .eq('date', date);
-    
-    if (attendanceError) {
-      console.error('Error fetching attendance:', attendanceError);
-      setError('Failed to fetch attendance.');
-    } else {
-      const attendanceMap = attendanceData.reduce((acc, record) => {
-        acc[record.student_id] = record.status;
-        return acc;
-      }, {});
-      setAttendance(attendanceMap);
-    }
-    setLoading(false);
-  };
+  }, [user]);
 
   useEffect(() => {
+    const fetchStudentsAndAttendance = async () => {
+      if (!selectedClass || !date) {
+        setStudents([]);
+        setAttendance({});
+        return;
+      };
+      setLoading(true);
+      setError(null);
+
+      try {
+        // Fetch students in the selected class
+        const { data: studentsData, error: studentsError } = await supabase
+          .from('students')
+          .select('*')
+          .eq('class_id', selectedClass);
+        if (studentsError) throw studentsError;
+        setStudents(studentsData);
+
+        // Fetch existing attendance for the selected date
+        const { data: attendanceData, error: attendanceError } = await supabase
+          .from('attendance')
+          .select('*')
+          .eq('class_id', selectedClass)
+          .eq('date', date);
+        
+        if (attendanceError) throw attendanceError;
+        
+        const attendanceMap = attendanceData.reduce((acc, record) => {
+          acc[record.student_id] = record.status;
+          return acc;
+        }, {});
+        setAttendance(attendanceMap);
+      } catch (err) {
+        console.error('Error fetching students and attendance:', err);
+        setError('Failed to load class data.');
+      }
+      setLoading(false);
+    };
+
     fetchStudentsAndAttendance();
   }, [selectedClass, date]);
 
@@ -73,12 +105,20 @@ function TeacherAttendance() {
   const handleSaveAttendance = async () => {
     setLoading(true);
     setError(null);
-    const records = Object.entries(attendance).map(([student_id, status]) => ({
-      student_id,
-      class_id: selectedClass,
-      date,
-      status,
+    const records = students
+      .filter(student => attendance[student.id]) // Only upsert students with a status
+      .map(student => ({
+        student_id: student.id,
+        class_id: selectedClass,
+        date,
+        status: attendance[student.id],
     }));
+
+    if (records.length === 0) {
+        alert("No attendance changes to save.");
+        setLoading(false);
+        return;
+    }
 
     // Upsert to handle both new and existing records
     const { error } = await supabase.from('attendance').upsert(records, {
@@ -112,7 +152,7 @@ function TeacherAttendance() {
             value={selectedClass}
             onChange={(e) => setSelectedClass(e.target.value)}
             className="p-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-            disabled={loading}
+            disabled={loading || classes.length === 0}
           >
             <option value="">Select a Class</option>
             {classes.map((c) => (
@@ -131,7 +171,7 @@ function TeacherAttendance() {
 
       {selectedClass && date && (
         <div className="bg-white shadow-md rounded-lg overflow-hidden">
-          <h3 className="text-xl font-semibold text-gray-700 p-6 border-b border-gray-200">Students in {classes.find(c => c.id === selectedClass)?.name}</h3>
+          <h3 className="text-xl font-semibold text-gray-700 p-6 border-b border-gray-200">Students in {classes.find(c => c.id == selectedClass)?.name}</h3>
           {loading ? (
             <div className="text-center py-4 text-gray-500">Loading students...</div>
           ) : students.length > 0 ? (
