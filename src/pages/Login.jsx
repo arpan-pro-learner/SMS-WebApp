@@ -37,11 +37,7 @@ function Login() {
     }
   };
 
-  const handleDemoLogin = () => {
-    setEmail('demo@example.com');
-    setPassword('password');
-    // The user will still need to click the main "Sign In" button
-  };
+
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-50">
@@ -118,15 +114,7 @@ function Login() {
               </button>
             </div>
           </form>
-          <div className="mt-6">
-            <button
-              onClick={handleDemoLogin}
-              disabled={loading}
-              className="w-full flex justify-center py-2 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-gray-200 hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:opacity-50 transition duration-150 ease-in-out"
-            >
-              {loading ? 'Loading...' : 'Login as Demo User'}
-            </button>
-          </div>
+
         </div>
         <p className="mt-6 text-center text-xs text-gray-500">
           &copy; 2025 School Management System. All rights reserved.
