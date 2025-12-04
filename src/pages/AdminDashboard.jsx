@@ -122,10 +122,10 @@ function AdminDashboard() {
       </header>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
-        <StatCard title="Total Students" value={stats.students} icon={<Users className="w-6 h-6 text-blue-600" />} color="text-blue-600" linkTo="/students" />
-        <StatCard title="Total Teachers" value={stats.teachers} icon={<GraduationCap className="w-6 h-6 text-green-600" />} color="text-green-600" linkTo="/teachers" />
-        <StatCard title="Total Classes" value={stats.classes} icon={<School className="w-6 h-6 text-orange-500" />} color="text-orange-500" linkTo="/classes" />
-        <StatCard title="Announcements" value={stats.announcements} icon={<Megaphone className="w-6 h-6 text-red-500" />} color="text-red-500" linkTo="/announcements" />
+        <StatCard title="Total Students" value={stats.students} icon={<Users className="w-6 h-6 text-blue-600" />} color="text-blue-600" linkTo="/app/admin/students" />
+        <StatCard title="Total Teachers" value={stats.teachers} icon={<GraduationCap className="w-6 h-6 text-green-600" />} color="text-green-600" linkTo="/app/admin/teachers" />
+        <StatCard title="Total Classes" value={stats.classes} icon={<School className="w-6 h-6 text-orange-500" />} color="text-orange-500" linkTo="/app/admin/classes" />
+        <StatCard title="Announcements" value={stats.announcements} icon={<Megaphone className="w-6 h-6 text-red-500" />} color="text-red-500" linkTo="/app/announcements" />
       </div>
 
       <div className="bg-white p-6 rounded-xl shadow-lg">
