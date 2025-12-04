@@ -23,23 +23,31 @@ function TeacherDashboard() {
       setLoading(true);
       setError(null);
       try {
-        if (!user) throw new Error("User not found");
+        console.log('[Debug] Starting fetchTeacherData...');
+        if (!user) {
+          console.log('[Debug] No user found in store. Aborting.');
+          throw new Error("User not found");
+        }
+        console.log('[Debug] Logged-in user from store:', user);
 
         let teacherData = null;
 
         // Case 1: Admin is viewing as a teacher
         if (user.originalRole === 'admin' && user.role === 'teacher') {
+          console.log('[Debug] Path: Admin is viewing as teacher.');
           const { data: teachers, error: teacherError } = await supabase
             .from('users')
             .select('id, name')
             .eq('role', 'teacher')
             .limit(1);
           
+          console.log('[Debug] Supabase query result for first teacher:', { teachers, teacherError });
           if (teacherError) throw teacherError;
           if (!teachers || teachers.length === 0) throw new Error("No teachers found in the database to display.");
           teacherData = teachers[0];
         } else {
         // Case 2: A regular teacher is viewing their own dashboard
+          console.log('[Debug] Path: Regular teacher login.');
           const { data: teachers, error: teacherError } = await supabase
             .from('users')
             .select('id, name')
@@ -47,10 +55,13 @@ function TeacherDashboard() {
             .eq('role', 'teacher')
             .limit(1);
           
+          console.log(`[Debug] Supabase query result for user.email "${user.email}":`, { teachers, teacherError });
           if (teacherError) throw teacherError;
           if (!teachers || teachers.length === 0) throw new Error("Could not find a matching teacher profile for the logged-in user.");
           teacherData = teachers[0];
         }
+        
+        console.log('[Debug] Successfully found teacherData:', teacherData);
         
         if (teacherData) {
           const { data: classesData, error: classesError } = await supabase
@@ -72,7 +83,9 @@ function TeacherDashboard() {
         if (classIds.length === 0) {
             setAttendanceSummary({ Present: 0, Absent: 0, Late: 0 });
             setMarksSummary([]);
-            return;
+            // This is the end of the process for a teacher with no classes, so we should return.
+            setLoading(false); // Make sure to stop loading spinner.
+            return; 
         };
 
         const studentIds = teacherData.classes.flatMap(c => c.students.map(s => s.id));
