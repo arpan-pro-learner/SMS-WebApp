@@ -6,19 +6,42 @@ import { Calendar, CheckCircle, XCircle, Clock } from 'lucide-react';
 
 ChartJS.register(ArcElement, Tooltip, Legend);
 
+import useUserStore from '../store/userStore';
+
+// ... (rest of imports)
+
+// ... (ChartJS registration)
+
 function StudentAttendance() {
   const [attendance, setAttendance] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const { user } = useUserStore();
 
   useEffect(() => {
     const fetchStudentAndAttendance = async () => {
       setLoading(true);
       setError(null);
       try {
-        const { data: { user } } = await supabase.auth.getUser();
-        
-        if (user) {
+        if (!user) return;
+
+        let studentId = null;
+
+        // Case 1: Admin is viewing as a student
+        if (user.originalRole === 'admin' && user.role === 'student') {
+          // For demo purposes, fetch the first student's data
+          const { data: firstStudent, error: firstStudentError } = await supabase
+            .from('students')
+            .select('id')
+            .limit(1)
+            .single();
+
+          if (firstStudentError) throw firstStudentError;
+          if (!firstStudent) throw new Error("No students found to display.");
+          
+          studentId = firstStudent.id;
+        } else {
+          // Case 2: A regular student is viewing their own attendance
           const { data: studentData, error: studentError } = await supabase
             .from('students')
             .select('id')
@@ -26,17 +49,18 @@ function StudentAttendance() {
             .single();
 
           if (studentError) throw studentError;
-
-          const { data, error: attendanceError } = await supabase
-            .from('attendance')
-            .select('id, date, status')
-            .eq('student_id', studentData.id)
-            .order('date', { ascending: false });
-
-          if (attendanceError) throw attendanceError;
-          
-          setAttendance(data);
+          studentId = studentData.id;
         }
+
+        const { data, error: attendanceError } = await supabase
+          .from('attendance')
+          .select('id, date, status')
+          .eq('student_id', studentId)
+          .order('date', { ascending: false });
+
+        if (attendanceError) throw attendanceError;
+        
+        setAttendance(data);
       } catch (err) {
         console.error('Error fetching attendance data:', err);
         setError('Failed to fetch attendance data. Please try again later.');
@@ -46,7 +70,7 @@ function StudentAttendance() {
     };
 
     fetchStudentAndAttendance();
-  }, []);
+  }, [user]);
 
   const attendanceSummary = attendance.reduce(
     (acc, record) => {

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from '../supabaseClient';
 import { Link } from 'react-router-dom';
 import { CheckCircle, XCircle, Award, Megaphone, ArrowRight, AlertCircle } from 'lucide-react';
+import useUserStore from '../store/userStore';
 
 const StatCard = ({ title, value, icon, color, linkTo }) => (
   <Link to={linkTo} className="block bg-white p-6 rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300">
@@ -28,28 +29,46 @@ function StudentDashboard() {
   const [recentAnnouncements, setRecentAnnouncements] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const { user } = useUserStore();
 
   useEffect(() => {
     const fetchDashboardData = async () => {
       setLoading(true);
       setError(null);
       try {
-        const { data: { user } } = await supabase.auth.getUser();
         if (!user) throw new Error("User not found");
 
-        const { data: studentData, error: studentError } = await supabase
-          .from('students')
-          .select('id, name, email')
-          .eq('email', user.email)
-          .single();
-        if (studentError) throw studentError;
-        setStudent(studentData);
+        let studentToFetch = null;
+
+        // Case 1: Admin is viewing as a student
+        if (user.originalRole === 'admin' && user.role === 'student') {
+          const { data: firstStudent, error: firstStudentError } = await supabase
+            .from('students')
+            .select('id, name, email')
+            .limit(1)
+            .single();
+
+          if (firstStudentError) throw firstStudentError;
+          if (!firstStudent) throw new Error("No students found to display.");
+          studentToFetch = firstStudent;
+        } else {
+        // Case 2: A regular student is viewing their own dashboard
+          const { data: studentData, error: studentError } = await supabase
+            .from('students')
+            .select('id, name, email')
+            .eq('email', user.email)
+            .single();
+          if (studentError) throw studentError;
+          studentToFetch = studentData;
+        }
+        
+        setStudent(studentToFetch);
 
         // Fetch Attendance
         const { data: attendanceData, error: attendanceError } = await supabase
           .from('attendance')
           .select('status')
-          .eq('student_id', studentData.id);
+          .eq('student_id', studentToFetch.id);
         if (attendanceError) throw attendanceError;
         const summary = attendanceData.reduce((acc, record) => {
           acc[record.status.toLowerCase()] = (acc[record.status.toLowerCase()] || 0) + 1;
@@ -61,7 +80,7 @@ function StudentDashboard() {
         const { data: marksData, error: marksError } = await supabase
           .from('marks')
           .select('marks')
-          .eq('student_id', studentData.id);
+          .eq('student_id', studentToFetch.id);
         if (marksError) throw marksError;
         const totalMarks = marksData.reduce((sum, record) => sum + record.marks, 0);
         const avg = marksData.length > 0 ? (totalMarks / marksData.length).toFixed(1) : 0;
@@ -85,7 +104,7 @@ function StudentDashboard() {
     };
 
     fetchDashboardData();
-  }, []);
+  }, [user]);
 
   if (loading) {
     return (
@@ -117,9 +136,9 @@ function StudentDashboard() {
       </header>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6 mb-8">
-        <StatCard title="Days Present" value={attendanceSummary.present} icon={<CheckCircle className="w-6 h-6 text-green-600" />} color="text-green-600" linkTo="/student-attendance" />
-        <StatCard title="Days Absent" value={attendanceSummary.absent} icon={<XCircle className="w-6 h-6 text-red-600" />} color="text-red-600" linkTo="/student-attendance" />
-        <StatCard title="Average Score" value={`${averageMarks}%`} icon={<Award className="w-6 h-6 text-purple-600" />} color="text-purple-600" linkTo="/student-marks" />
+        <StatCard title="Days Present" value={attendanceSummary.present} icon={<CheckCircle className="w-6 h-6 text-green-600" />} color="text-green-600" linkTo="/app/student/attendance" />
+        <StatCard title="Days Absent" value={attendanceSummary.absent} icon={<XCircle className="w-6 h-6 text-red-600" />} color="text-red-600" linkTo="/app/student/attendance" />
+        <StatCard title="Average Score" value={`${averageMarks}%`} icon={<Award className="w-6 h-6 text-purple-600" />} color="text-purple-600" linkTo="/app/student/marks" />
       </div>
 
       <div className="bg-white p-6 rounded-xl shadow-lg">
@@ -131,7 +150,7 @@ function StudentDashboard() {
           <ul className="space-y-3">
             {recentAnnouncements.map(ann => (
               <li key={ann.id} className="p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                <Link to="/announcements" className="flex justify-between items-center">
+                <Link to="/app/announcements" className="flex justify-between items-center">
                   <span className="font-medium text-gray-800">{ann.title}</span>
                   <span className="text-xs text-gray-500">{new Date(ann.created_at).toLocaleDateString()}</span>
                 </Link>
@@ -142,7 +161,7 @@ function StudentDashboard() {
           <p className="text-gray-500">No recent announcements.</p>
         )}
         <div className="mt-4">
-          <Link to="/announcements" className="text-sm font-medium text-blue-600 hover:underline flex items-center">
+          <Link to="/app/announcements" className="text-sm font-medium text-blue-600 hover:underline flex items-center">
             View All Announcements <ArrowRight className="w-4 h-4 ml-1" />
           </Link>
         </div>

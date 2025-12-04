@@ -14,18 +14,42 @@ import { BookOpen, Award, TrendingUp } from 'lucide-react';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
+import useUserStore from '../store/userStore';
+
+// ... (rest of the imports)
+
+// ... (ChartJS registration)
+
 function StudentMarks() {
   const [marks, setMarks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const { user } = useUserStore();
 
   useEffect(() => {
     const fetchMarks = async () => {
       setLoading(true);
       setError(null);
       try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
+        if (!user) return;
+
+        let studentId = null;
+
+        // Case 1: Admin is viewing as a student
+        if (user.originalRole === 'admin' && user.role === 'student') {
+          // For demo purposes, fetch the first student's data
+          const { data: firstStudent, error: firstStudentError } = await supabase
+            .from('students')
+            .select('id')
+            .limit(1)
+            .single();
+          
+          if (firstStudentError) throw firstStudentError;
+          if (!firstStudent) throw new Error("No students found to display.");
+
+          studentId = firstStudent.id;
+        } else {
+          // Case 2: A regular student is viewing their own marks
           const { data: studentData, error: studentError } = await supabase
             .from('students')
             .select('id')
@@ -33,16 +57,17 @@ function StudentMarks() {
             .single();
 
           if (studentError) throw studentError;
-
-          const { data, error: marksError } = await supabase
-            .from('marks')
-            .select('id, subject, marks')
-            .eq('student_id', studentData.id);
-            
-          if (marksError) throw marksError;
-
-          setMarks(data);
+          studentId = studentData.id;
         }
+
+        const { data, error: marksError } = await supabase
+          .from('marks')
+          .select('id, subject, marks')
+          .eq('student_id', studentId);
+            
+        if (marksError) throw marksError;
+
+        setMarks(data);
       } catch (err) {
         console.error('Error fetching marks:', err);
         setError('Failed to fetch your marks. Please try again later.');
@@ -51,7 +76,7 @@ function StudentMarks() {
       }
     };
     fetchMarks();
-  }, []);
+  }, [user]);
 
   const chartData = {
     labels: marks.map((m) => m.subject),
