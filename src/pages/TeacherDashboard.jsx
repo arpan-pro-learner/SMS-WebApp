@@ -34,28 +34,30 @@ function TeacherDashboard() {
 
         // Case 1: Admin is viewing as a teacher
         if (user.originalRole === 'admin' && user.role === 'teacher') {
-          console.log('[Debug] Path: Admin is viewing as teacher. Querying `teachers` table.');
+          console.log('[Debug] Path: Admin is viewing as teacher.');
           const { data: teachers, error: teacherError } = await supabase
-            .from('teachers')
+            .from('users')
             .select('id, name')
+            .eq('role', 'teacher')
             .limit(1);
           
-          console.log('[Debug] Supabase query result from `teachers` table:', { teachers, teacherError });
+          console.log('[Debug] Supabase query result for first teacher:', { teachers, teacherError });
           if (teacherError) throw teacherError;
-          if (!teachers || teachers.length === 0) throw new Error("No teachers found in the `teachers` table to display.");
+          if (!teachers || teachers.length === 0) throw new Error("No teachers found in the database to display.");
           teacherData = teachers[0];
         } else {
         // Case 2: A regular teacher is viewing their own dashboard
-          console.log('[Debug] Path: Regular teacher login. Querying `teachers` table.');
+          console.log('[Debug] Path: Regular teacher login.');
           const { data: teachers, error: teacherError } = await supabase
-            .from('teachers')
+            .from('users')
             .select('id, name')
             .eq('email', user.email)
+            .eq('role', 'teacher')
             .limit(1);
           
-          console.log(`[Debug] Supabase query result for user.email "${user.email}" from \`teachers\` table:`, { teachers, teacherError });
+          console.log(`[Debug] Supabase query result for user.email "${user.email}":`, { teachers, teacherError });
           if (teacherError) throw teacherError;
-          if (!teachers || teachers.length === 0) throw new Error("Could not find a matching teacher profile in the `teachers` table.");
+          if (!teachers || teachers.length === 0) throw new Error("Could not find a matching teacher profile for the logged-in user.");
           teacherData = teachers[0];
         }
         
