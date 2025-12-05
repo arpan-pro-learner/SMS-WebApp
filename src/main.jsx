@@ -6,7 +6,7 @@ import { supabase } from './supabaseClient';
 import { seedSupabase } from './lib/seedSupabase';
 
 // Seed the database with mock data on application startup
-// seedSupabase();
+seedSupabase();
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

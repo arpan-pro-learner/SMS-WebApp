@@ -123,10 +123,10 @@ function StudentAttendance() {
   };
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 bg-gray-50 min-h-screen">
-      <header className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">My Attendance</h1>
-        <p className="text-sm text-gray-600 mt-1">A summary of your attendance records.</p>
+    <div className="container mx-auto p-4 sm:p-6 lg:p-8 bg-gray-50 min-h-screen">
+      <header className="mb-10 text-center">
+        <h1 className="text-4xl font-extrabold text-gray-900 mb-2">My Attendance</h1>
+        <p className="text-lg text-gray-600">A comprehensive overview of your attendance records.</p>
       </header>
 
       {loading ? (
@@ -139,57 +139,56 @@ function StudentAttendance() {
           <p>{error}</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-10">
           {/* Chart and Summary Section */}
-          <div className="xl:col-span-1 bg-white p-6 rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-300">
-            <h2 className="text-xl font-semibold text-gray-800 mb-4 flex items-center">
-              <CheckCircle className="w-6 h-6 mr-2 text-blue-600" />
-              Attendance Summary
-            </h2>
-            <div className="relative h-64 w-full mx-auto mb-6">
-              <Doughnut data={chartData} options={chartOptions} />
-            </div>
-            <div className="space-y-3">
-              <div className="flex justify-between items-center text-sm font-medium">
-                <span className="flex items-center text-green-600"><CheckCircle className="w-4 h-4 mr-2" /> Present</span>
-                <span>{attendanceSummary.Present} days</span>
-              </div>
-              <div className="flex justify-between items-center text-sm font-medium">
-                <span className="flex items-center text-red-600"><XCircle className="w-4 h-4 mr-2" /> Absent</span>
-                <span>{attendanceSummary.Absent} days</span>
-              </div>
-              <div className="flex justify-between items-center text-sm font-medium">
-                <span className="flex items-center text-yellow-600"><Clock className="w-4 h-4 mr-2" /> Late</span>
-                <span>{attendanceSummary.Late} days</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Attendance Details Table */}
-          <div className="xl:col-span-2 bg-white p-6 rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-300">
-            <h2 className="text-xl font-semibold text-gray-800 mb-4 flex items-center">
-              <Calendar className="w-6 h-6 mr-2 text-blue-600" />
-              Detailed Records
-            </h2>
-            {attendance.length === 0 ? (
-              <div className="text-center py-12">
-                <Calendar size={48} className="mx-auto text-gray-400" />
-                <p className="mt-4 text-gray-500">No attendance records found.</p>
-                <p className="text-sm text-gray-400">Your attendance history will appear here.</p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto -mx-6">
-                <table className="min-w-full">
-                  <thead className="border-b border-gray-200">
+                    <div className="xl:col-span-1 bg-white p-8 rounded-xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1">
+                      <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center">
+                        <CheckCircle className="w-7 h-7 mr-3 text-blue-600" />
+                        Attendance Summary
+                      </h2>
+                      <div className="relative h-72 w-full mx-auto mb-8">
+                        <Doughnut data={chartData} options={chartOptions} />
+                      </div>
+                      <div className="space-y-4">
+                        <div className="flex justify-between items-center text-lg font-medium text-gray-700">
+                          <span className="flex items-center text-green-600"><CheckCircle className="w-5 h-5 mr-3" /> Present</span>
+                          <span>{attendanceSummary.Present} days</span>
+                        </div>
+                        <div className="flex justify-between items-center text-lg font-medium text-gray-700">
+                          <span className="flex items-center text-red-600"><XCircle className="w-5 h-5 mr-3" /> Absent</span>
+                          <span>{attendanceSummary.Absent} days</span>
+                        </div>
+                        <div className="flex justify-between items-center text-lg font-medium text-gray-700">
+                          <span className="flex items-center text-yellow-600"><Clock className="w-5 h-5 mr-3" /> Late</span>
+                          <span>{attendanceSummary.Late} days</span>
+                        </div>
+                      </div>
+                    </div>
+          
+                    {/* Attendance Details Table */}
+                    <div className="xl:col-span-2 bg-white p-8 rounded-xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1">
+                      <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center">
+                        <Calendar className="w-7 h-7 mr-3 text-blue-600" />
+                        Detailed Records
+                      </h2>
+                      {attendance.length === 0 ? (
+                        <div className="text-center py-20 px-4">
+                          <Calendar size={64} className="mx-auto text-gray-400 mb-6" />
+                          <p className="text-xl font-semibold text-gray-700 mb-2">No attendance records found.</p>
+                          <p className="text-md text-gray-500">It looks like your attendance history hasn't been recorded yet. Please check back later!</p>
+                        </div>
+                      ) : (
+                        <div className="overflow-x-auto">                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-200">
+                  <tbody className="bg-white divide-y divide-gray-200">
                     {attendance.map((record) => (
-                      <tr key={record.id} className="hover:bg-gray-50 transition-colors duration-200">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-800">{new Date(record.date).toLocaleDateString()}</td>
+                      <tr key={record.id}>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{new Date(record.date).toLocaleDateString()}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm">
                           {renderStatusBadge(record.status)}
                         </td>
