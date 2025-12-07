@@ -17,28 +17,22 @@ function SignUp() {
     setError(null);
 
     try {
-      const { data: authData, error: authError } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          data: {
+            name: name,
+            role: role,
+          }
+        }
       });
 
-      if (authError) {
-        setError(authError.message);
-        setLoading(false);
-        return;
-      }
-
-      if (authData.user) {
-        const { error: profileError } = await supabase
-          .from('users')
-          .insert([{ id: authData.user.id, name, email, role }]);
-
-        if (profileError) {
-          setError(profileError.message);
-        } else {
-          alert('Sign up successful! Please check your email to verify your account.');
-          navigate('/login');
-        }
+      if (error) {
+        setError(error.message);
+      } else {
+        alert('Sign up successful! Please check your email to verify your account.');
+        navigate('/login');
       }
     } catch (error) {
       setError(error.message);
