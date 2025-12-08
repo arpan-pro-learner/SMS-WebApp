@@ -14,7 +14,7 @@ const StatCard = ({ title, value, icon, color, linkTo }) => (
         <p className="text-sm font-medium text-gray-500">{title}</p>
         <p className={`text-3xl font-bold ${color}`}>{value}</p>
       </div>
-      <div className={`p-3 rounded-full bg-opacity-20 ${color.replace('text-', 'bg-')}`}>
+      <div>
         {icon}
       </div>
     </div>
