@@ -19,16 +19,7 @@ const Layout = ({ children }) => {
   };
 
   const handleRoleChange = (newRole) => {
-    console.log(`[Debug] handleRoleChange called with newRole: "${newRole}"`);
-    if (!user || user.originalRole !== 'admin') {
-      console.log('[Debug] Role change blocked: not an admin.');
-      return;
-    }
 
-    console.log('[Debug] Calling setUserRole...');
-    setUserRole(newRole);
-    
-    console.log(`[Debug] Navigating to /app/${newRole}...`);
     // Navigate to the new role's dashboard to refresh the context
     navigate(`/app/${newRole}`);
   };

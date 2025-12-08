@@ -7,7 +7,7 @@ function AppLayout() {
   const { user, fetchUser } = useUserStore();
 
   useEffect(() => {
-    console.log('[AppLayout] Mounting, calling fetchUser...');
+  
     fetchUser();
   }, [fetchUser]);
 

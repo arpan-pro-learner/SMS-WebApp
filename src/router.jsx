@@ -76,7 +76,7 @@ const router = createBrowserRouter([
 function RootRedirect() {
   const { user, loading } = useUserStore();
 
-  console.log('[RootRedirect] Rendering with state:', { user, loading });
+  
 
   if (loading) {
     return <div>Loading...</div>;

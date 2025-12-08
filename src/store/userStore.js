@@ -5,7 +5,7 @@ const useUserStore = create((set) => ({
   user: null,
   loading: true,
   fetchUser: async () => {
-    console.log('[userStore] fetchUser started...');
+
     set({ loading: true });
     try {
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
