@@ -5,6 +5,8 @@ import Router from './router.jsx';
 import { supabase } from './supabaseClient';
 import { seedSupabase } from './lib/seedSupabase';
 
+import { Toaster } from 'react-hot-toast';
+
 console.log('[main.jsx] Initializing application...');
 
 // Seed the database only in development mode to avoid issues in production
@@ -20,5 +22,6 @@ if (import.meta.env.DEV) {
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <Router />
+    <Toaster position="top-center" reverseOrder={false} />
   </StrictMode>
 );

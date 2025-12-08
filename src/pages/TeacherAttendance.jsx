@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
+import toast from 'react-hot-toast';
 import useUserStore from '../store/userStore';
 
 function TeacherAttendance() {
@@ -105,31 +106,34 @@ function TeacherAttendance() {
   const handleSaveAttendance = async () => {
     setLoading(true);
     setError(null);
+    const toastId = toast.loading('Saving attendance...'); // Add loading toast
+
     const records = students
       .filter(student => attendance[student.id]) // Only upsert students with a status
       .map(student => ({
         student_id: student.id,
-        class_id: selectedClass,
+        class_id: Number(selectedClass),
         date,
         status: attendance[student.id],
     }));
 
     if (records.length === 0) {
-        alert("No attendance changes to save.");
+        toast.info("No attendance changes to save.", { id: toastId }); // Replace alert with toast.info
         setLoading(false);
         return;
     }
 
     // Upsert to handle both new and existing records
-    const { error } = await supabase.from('attendance').upsert(records, {
+    const { error: upsertError } = await supabase.from('attendance').upsert(records, { // Rename error to upsertError
       onConflict: 'student_id, date',
     });
 
-    if (error) {
-      console.error('Error saving attendance:', error.message, error.details, error.hint, error);
+    if (upsertError) { // Use upsertError
+      console.error('Error saving attendance:', upsertError.message, upsertError.details, upsertError.hint, upsertError);
       setError('Failed to save attendance.');
+      toast.error('Failed to save attendance.', { id: toastId }); // Add error toast
     } else {
-      alert('Attendance saved successfully!'); // Replace with toast message later
+      toast.success('Attendance saved successfully!', { id: toastId }); // Replace alert with toast.success
     }
     setLoading(false);
   };
