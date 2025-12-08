@@ -18,8 +18,10 @@ const FeatureCard = ({ icon, title, description }) => (
 // Role Card Component (new)
 const RoleCard = ({ icon, title, description, colorClass, benefits }) => (
   <div className={`p-8 rounded-xl shadow-lg border border-gray-200 bg-white transform hover:-translate-y-2 hover:shadow-xl transition-all duration-300 group`}>
-    <div className={`flex items-center justify-center h-16 w-16 rounded-full ${colorClass} bg-opacity-20 text-4xl mb-6 transition-all duration-300 group-hover:bg-opacity-30`}>
-      {icon}
+    <div className="flex justify-center mb-6">
+      <div className={`flex items-center justify-center h-16 w-16 rounded-full ${colorClass} bg-opacity-20 transition-all duration-300 group-hover:bg-opacity-30`}>
+        {icon}
+      </div>
     </div>
     <h3 className="text-2xl font-bold text-gray-900 mb-3">{title}</h3>
     <p className="text-gray-600 mb-4">{description}</p>
