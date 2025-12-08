@@ -11,7 +11,7 @@ const StatCard = ({ title, value, icon, color, linkTo }) => (
         <p className="text-sm font-medium text-gray-500">{title}</p>
         <p className={`text-3xl font-bold ${color}`}>{value}</p>
       </div>
-      <div className={`p-3 rounded-full bg-opacity-20 ${color.replace('text-', 'bg-')}`}>
+      <div>
         {icon}
       </div>
     </div>
@@ -137,7 +137,7 @@ function StudentDashboard() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6 mb-8">
         <StatCard title="Days Present" value={attendanceSummary.present} icon={<CircleCheckBig className="w-6 h-6 text-green-600" />} color="text-green-600" linkTo="/app/student/attendance" />
-        <StatCard title="Days Absent" value={attendanceSummary.absent} icon={<CircleX className="w-6 h-6 text-red-600" />} color="text-red-600" linkTo="/app/student/attendance" />
+        <StatCard title="Days Absent" value={attendanceSummary.absent} icon={<CircleX className="w-6 h-6 text-blue-600" />} color="text-blue-600" linkTo="/app/student/attendance" />
         <StatCard title="Average Score" value={`${averageMarks}%`} icon={<Award className="w-6 h-6 text-purple-600" />} color="text-purple-600" linkTo="/app/student/marks" />
       </div>
 

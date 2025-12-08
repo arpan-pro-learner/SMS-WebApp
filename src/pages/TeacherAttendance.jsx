@@ -126,7 +126,7 @@ function TeacherAttendance() {
     });
 
     if (error) {
-      console.error('Error saving attendance:', error);
+      console.error('Error saving attendance:', error.message, error.details, error.hint, error);
       setError('Failed to save attendance.');
     } else {
       alert('Attendance saved successfully!'); // Replace with toast message later
