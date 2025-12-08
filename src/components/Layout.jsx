@@ -8,9 +8,7 @@ const Layout = ({ children }) => {
   const navigate = useNavigate();
   const { user, loading, fetchUser, setUserRole } = useUserStore();
 
-  useEffect(() => {
-    fetchUser();
-  }, [fetchUser]);
+
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -19,7 +17,11 @@ const Layout = ({ children }) => {
   };
 
   const handleRoleChange = (newRole) => {
-
+    if (!user || user.originalRole !== 'admin') {
+      return;
+    }
+    setUserRole(newRole);
+    
     // Navigate to the new role's dashboard to refresh the context
     navigate(`/app/${newRole}`);
   };

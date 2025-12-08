@@ -7,9 +7,12 @@ function AppLayout() {
   const { user, fetchUser } = useUserStore();
 
   useEffect(() => {
-  
-    fetchUser();
-  }, [fetchUser]);
+    // Only fetch the user on initial load if they don't exist in the store.
+    // This prevents overwriting the role when an admin performs a role-switch.
+    if (!user) {
+      fetchUser();
+    }
+  }, [user, fetchUser]);
 
   const role = user?.role; // Get the current role from the store
 
