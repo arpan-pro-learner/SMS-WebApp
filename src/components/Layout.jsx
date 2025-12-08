@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { supabase } from '../supabaseClient';
-import { useNavigate, NavLink } from 'react-router-dom';
+import { useNavigate, Link, NavLink } from 'react-router-dom';
 import useUserStore from '../store/userStore';
 import { ChevronDown } from 'lucide-react';
 
@@ -75,7 +75,9 @@ const Layout = ({ children }) => {
       {/* Sidebar */}
       <div className="w-64 bg-white shadow-lg flex flex-col">
         <div className="flex items-center justify-center h-20 border-b border-gray-200 px-4">
-          <img src="/logoipsum-352.png" alt="Logo" className="h-10" />
+          <Link to="/" className="flex items-center justify-center">
+            <img src="/logoipsum-352.png" alt="Logo" className="h-10" />
+          </Link>
         </div>
         <nav className="flex-1 px-2 py-4 space-y-1">
           {getNavLinks().map((link) => (
@@ -126,7 +128,7 @@ const Layout = ({ children }) => {
           </div>
           <button
             onClick={handleLogout}
-            className="px-4 py-2 font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition duration-150 ease-in-out"
+            className="px-4 py-2 font-medium text-gray-700 rounded-lg hover:text-red-700 hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition duration-150 ease-in-out"
           >
             Logout
           </button>
